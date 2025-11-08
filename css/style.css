@@ -1,0 +1,139 @@
+/* ===============================================
+   🌐 GLOBAL STYLES - style.css
+   =============================================== */
+
+/* Reset + Font */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Rubik', sans-serif;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: #0a0a0a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* ============================
+   📱 PHONE CONTAINER (Desktop)
+   ============================ */
+.phone {
+  position: relative;
+  width: 380px;
+  height: 750px;
+  background: #000;
+  border-radius: 40px;
+  overflow: hidden;
+  box-shadow: 0 0 30px rgba(0,0,0,0.6), 0 0 80px rgba(0,0,0,0.2);
+  border: 10px solid #111;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Hide frame on mobile */
+@media (max-width: 600px) {
+  .phone {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+  }
+}
+
+/* ============================
+   📄 SCREEN BASE STYLE
+   ============================ */
+.screen {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  background: #000;
+  color: #fff;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  transition: opacity 0.5s ease, transform 0.4s ease;
+}
+
+.screen.active {
+  display: flex;
+  opacity: 1;
+  transform: translateY(0);
+  z-index: 5;
+}
+
+/* Smooth fade-out effect when hidden */
+.screen.fade-out {
+  opacity: 0;
+  transform: translateY(-20px);
+  z-index: 0;
+}
+
+/* ============================
+   🌈 BACKGROUNDS & GENERAL
+   ============================ */
+.lock-wallpaper, .home-wallpaper {
+  width: 100%;
+  height: 100%;
+  background: url('../assets/wallpaper.jpg') center/cover no-repeat;
+  position: relative;
+}
+
+.lock-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+}
+
+/* ============================
+   🪟 UTILITY CLASSES
+   ============================ */
+button {
+  cursor: pointer;
+  outline: none;
+  border: none;
+  transition: all 0.3s ease;
+}
+
+button:active {
+  transform: scale(0.96);
+}
+
+.back-btn-container {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+}
+
+.back-btn {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  backdrop-filter: blur(5px);
+}
+
+/* ============================
+   ⚙️ ANIMATIONS (Reusable)
+   ============================ */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-20px); }
+}

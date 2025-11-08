@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Voice Bubble — Frontend</title>
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ===============================
+       AI Voice Bubble — style (RESPONSIVE)
+       Single-file frontend: HTML + CSS + JS
+       No frameworks. Accessible and responsive.
+       =============================== */
+
+    :root{
+      --bg-1: #021023;     /* deep navy */
+      --bg-2: #001827;     /* near-black teal */
+      --accent-1: #7df9ff; /* cyan-ish */
+      --accent-2: #8a6bff; /* violet */
+      --glass: rgba(255,255,255,0.06);
+      --muted: rgba(255,255,255,0.6);
+      --danger: #ff6b6b;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%;}
+    body{
+      margin:0;
+      font-family: 'Rubik', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      background: linear-gradient(180deg,var(--bg-1),var(--bg-2));
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:32px;
+      gap:20px;
+      min-height:100vh;
+    }
+
+    /* Main app card to center content and provide subtle depth */
+    .app-shell{
+      width:min(880px, 96vw);
+      max-width:960px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:20px;
+      padding:48px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+      gap:22px;
+    }
+
+    /* Title + small description */
+    .app-title{
+      text-align:center;
+      margin-bottom:6px;
+    }
+    .app-title h1{
+      font-size:clamp(18px, 3.2vw, 28px);
+      margin:0;
+      font-weight:600;
+      letter-spacing:0.2px;
+    }
+    .app-title p{
+      margin:6px 0 0 0;
+      color:var(--muted);
+      font-size:clamp(12px, 1.4vw, 15px);
+    }
+
+    /* Center area for the bubble + waves */
+    .center-area{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:18px;
+      width:100%;
+    }
+
+    /* The glowing circular AI button */
+    .ai-bubble{
+      --size: clamp(120px, 22vw, 200px); /* responsive size */
+      width:var(--size);
+      height:var(--size);
+      border-radius:50%;
+      display:grid;
+      place-items:center;
+      position:relative;
+      cursor:pointer;
+      transition:transform 280ms cubic-bezier(.2,.9,.3,1), box-shadow 280ms;
+      user-select:none;
+      outline: none;
+      border: 1px solid rgba(255,255,255,0.03);
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.03), transparent 25%), linear-gradient(135deg, rgba(138,107,255,0.12), rgba(125,249,255,0.06));
+      box-shadow:
+        0 8px 30px rgba(10,12,30,0.6),
+        0 0 40px rgba(138,107,255,0.08),
+        inset 0 4px 18px rgba(255,255,255,0.02);
+      backdrop-filter: blur(6px) saturate(1.05);
+    }
+
+    /* Inner gradient circle that holds icon */
+    .ai-bubble .inner{
+      width:72%;
+      height:72%;
+      border-radius:50%;
+      display:grid;
+      place-items:center;
+      background:linear-gradient(180deg, rgba(138,107,255,0.18), rgba(125,249,255,0.06));
+      box-shadow: 0 6px 20px rgba(0,0,0,0.45), inset 0 2px 10px rgba(255,255,255,0.03);
+      transform:translateZ(0);
+    }
+
+    /* Icon inside the inner circle */
+    .ai-bubble svg{
+      width:34%;
+      height:34%;
+      opacity:0.95;
+      filter: drop-shadow(0 4px 12px rgba(125,249,255,0.08));
+    }
+
+    /* Pulse glow when active */
+    .ai-bubble.active{
+      animation: bubble-pulse 1600ms infinite;
+      transform: translateY(-6px) scale(1.02);
+      box-shadow:
+        0 14px 60px rgba(10,12,30,0.66),
+        0 0 120px rgba(125,249,255,0.14),
+        inset 0 6px 28px rgba(255,255,255,0.02);
+    }
+
+    @keyframes bubble-pulse{
+      0%{ box-shadow: 0 8px 30px rgba(10,12,30,0.6), 0 0 40px rgba(138,107,255,0.06); transform: scale(1); }
+      50%{ box-shadow: 0 18px 80px rgba(10,12,30,0.6), 0 0 220px rgba(125,249,255,0.12); transform: scale(1.04) translateY(-8px); }
+      100%{ box-shadow: 0 8px 30px rgba(10,12,30,0.6), 0 0 40px rgba(138,107,255,0.06); transform: scale(1); }
+    }
+
+    /* Decorative halo rings around bubble (only visible when active) */
+    .ai-bubble .halo{
+      position:absolute;
+      inset: -14%;
+      border-radius:50%;
+      pointer-events:none;
+      opacity:0;
+      transition:opacity 240ms;
+    }
+    .ai-bubble.active .halo{ opacity:1; }
+    .ai-bubble .halo::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(125,249,255,0.15),
+    rgba(138,107,255,0.15),
+    rgba(125,249,255,0.15)
+  );
+  filter: blur(18px);
+  transform: scale(1.1);
+  animation: halo-rotate 8s linear infinite;
+}
+
+@keyframes halo-rotate {
+  0% { transform: scale(1.1) rotate(0deg); }
+  100% { transform: scale(1.1) rotate(360deg); }
+}
+
+    /* Waves container - simple bars that animate height */
+    .waves{
+      width: min(460px, 88%);
+      height: calc(var(--size) / 4.2);
+      display:flex;
+      gap:8px;
+      align-items:end;
+      justify-content:center;
+      overflow:visible;
+      visibility:hidden;
+      opacity:0;
+      transition:opacity 220ms, visibility 220ms;
+    }
+
+    .waves.visible{
+      visibility:visible;
+      opacity:1;
+    }
+
+    /* Each bar style */
+    .wave-bar{
+      width: clamp(4px, 0.9vw, 8px);
+      background: linear-gradient(180deg, var(--accent-1), var(--accent-2));
+      border-radius:4px;
+      transform-origin: bottom center;
+      animation: wave 900ms infinite ease-in-out;
+      opacity:0.95;
+      box-shadow: 0 6px 12px rgba(10,12,30,0.5);
+    }
+
+    /* Stagger animation delays for variety */
+    .wave-bar:nth-child(1){ animation-delay: -700ms; }
+    .wave-bar:nth-child(2){ animation-delay: -600ms; }
+    .wave-bar:nth-child(3){ animation-delay: -500ms; }
+    .wave-bar:nth-child(4){ animation-delay: -400ms; }
+    .wave-bar:nth-child(5){ animation-delay: -300ms; }
+    .wave-bar:nth-child(6){ animation-delay: -200ms; }
+    .wave-bar:nth-child(7){ animation-delay: -100ms; }
+    .wave-bar:nth-child(8){ animation-delay: 0ms; }
+
+    @keyframes wave{
+      0%{ height: 18%; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.45)); }
+      50%{ height: 90%; }
+      100%{ height: 18%; }
+    }
+
+    /* Stop button */
+    .controls{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      justify-content:center;
+      width:100%;
+    }
+    .btn{
+      padding:10px 18px;
+      border-radius:14px;
+      background:var(--glass);
+      color:var(--muted);
+      border:1px solid rgba(255,255,255,0.04);
+      font-weight:600;
+      cursor:pointer;
+      transition: all 180ms ease;
+      backdrop-filter: blur(6px);
+    }
+    .btn:active{ transform:translateY(1px); }
+
+    .btn-stop{
+      background: linear-gradient(90deg, rgba(255,107,107,0.14), rgba(255,107,107,0.06));
+      color:#ffbcbc;
+      border: 1px solid rgba(255,107,107,0.12);
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      padding:10px 16px;
+    }
+
+    /* Hide stop button when idle */
+    .btn-stop.hidden{ display:none; }
+
+    /* Small footer / hint */
+    .hint{
+      color: var(--muted);
+      font-size: 13px;
+      text-align:center;
+      margin-top:6px;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width:520px){
+      .app-shell{ padding:28px; border-radius: 12px; }
+      .ai-bubble{ --size: clamp(92px, 26vw, 140px); }
+      .waves{ gap:6px; }
+    }
+
+    @media (max-width:360px){
+      .ai-bubble{ --size: 92px; }
+      .app-shell{ padding:18px; }
+    }
+
+    /* Focus styles for accessibility */
+    .ai-bubble:focus{ box-shadow: 0 0 0 8px rgba(125,249,255,0.06), 0 10px 30px rgba(0,0,0,0.6); }
+
+    body {
+  background: linear-gradient(120deg, var(--bg-1), var(--bg-2), #0a1a3a);
+  background-size: 200% 200%;
+  animation: bgShift 10s ease-in-out infinite;
+}
+
+@keyframes bgShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+
+  </style>
+</head>
+<body>
+
+  <main class="app-shell" role="application" aria-label="AI Voice Bubble App">
+
+    <header class="app-title">
+      <h1>AI Voice Bubble</h1>
+      <p>Click the glowing orb to start. The waves animate while the assistant is active.</p>
+    </header>
+
+    <section class="center-area">
+
+      <!-- Main clickable bubble -->
+      <button id="aiBubble" class="ai-bubble" aria-pressed="false" aria-label="Start AI voice" title="Start AI">
+        <span class="halo" aria-hidden="true"></span>
+        <span class="inner" aria-hidden="true">
+          <!-- simple microphone SVG icon -->
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 14a3.5 3.5 0 0 0 3.5-3.5V6.5A3.5 3.5 0 0 0 12 3a3.5 3.5 0 0 0-3.5 3.5v4A3.5 3.5 0 0 0 12 14z" stroke="white" stroke-opacity="0.95" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M19 11.5a7 7 0 0 1-14 0" stroke="white" stroke-opacity="0.06" stroke-width="1.4" stroke-linecap="round"/>
+            <path d="M12 17v4" stroke="white" stroke-opacity="0.06" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+        </span>
+      </button>
+
+      <!-- Animated waves (hidden when idle) -->
+      <div id="waves" class="waves" aria-hidden="true">
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+      </div>
+
+      <!-- Controls: Stop / (future) settings -->
+      <div class="controls">
+        <button id="stopBtn" class="btn btn-stop hidden" aria-hidden="true">Stop</button>
+      </div>
+
+      <div class="hint">Tip: This is the frontend mock — voice integration can be added later.</div>
+
+    </section>
+
+  </main>
+
+  <!-- =========================
+       JavaScript — behavior
+       - Toggle active state
+       - Keyboard accessible (Enter/Space)
+       - Expose start/stop hooks for future voice integration
+       ========================= -->
+  <script>
+    (function(){
+      const aiBubble = document.getElementById('aiBubble');
+      const waves = document.getElementById('waves');
+      const stopBtn = document.getElementById('stopBtn');
+
+      // internal state
+      let isActive = false;
+
+      // Utility: set active UI
+      function setActive(on){
+        isActive = !!on;
+        aiBubble.classList.toggle('active', isActive);
+        aiBubble.setAttribute('aria-pressed', String(isActive));
+
+        if(isActive){
+          waves.classList.add('visible');
+          stopBtn.classList.remove('hidden');
+          stopBtn.setAttribute('aria-hidden', 'false');
+        } else {
+          waves.classList.remove('visible');
+          stopBtn.classList.add('hidden');
+          stopBtn.setAttribute('aria-hidden', 'true');
+        }
+      }
+
+      // Public hooks to connect voice logic later
+      // For prototype frontend these will just toggle UI
+      function startAssistant(){
+        // Hook: Start speech recognition / AI streaming here in future
+        setActive(true);
+        // Add a small startup tone (optional) using WebAudio for nicer feel
+        playClickTone();
+      }
+
+      function stopAssistant(){
+        // Hook: Stop recognition & TTS here
+        setActive(false);
+        playEndTone();
+      }
+
+      // Keyboard accessibility: Enter or Space triggers bubble click
+      aiBubble.addEventListener('keydown', (e)=>{
+        if(e.key === 'Enter' || e.key === ' '){
+          e.preventDefault();
+          aiBubble.click();
+        }
+      });
+
+      // Click bubble toggles start/stop
+      aiBubble.addEventListener('click', ()=>{
+        if(!isActive) startAssistant();
+        else stopAssistant();
+      });
+
+      // Stop button explicit control
+      stopBtn.addEventListener('click', ()=>{
+        stopAssistant();
+      });
+
+      /* ============ Small audio tones using WebAudio ============
+         These tones are optional and purely cosmetic to make the UI feel
+         more alive. They use very small oscillator bursts — no audio files.
+         You can remove these if you prefer silence.
+      */
+
+      function playClickTone(){
+        try{
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = 'sine';
+          o.frequency.setValueAtTime(440, ctx.currentTime);
+          g.gain.setValueAtTime(0.0001, ctx.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + 0.01);
+          o.connect(g); g.connect(ctx.destination);
+          o.start();
+          g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+          o.stop(ctx.currentTime + 0.26);
+        }catch(e){ /* ignore if WebAudio not allowed */ }
+      }
+
+      function playEndTone(){
+        try{
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = 'triangle';
+          o.frequency.setValueAtTime(240, ctx.currentTime);
+          g.gain.setValueAtTime(0.0001, ctx.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 0.01);
+          o.connect(g); g.connect(ctx.destination);
+          o.start();
+          g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.28);
+          o.stop(ctx.currentTime + 0.29);
+        }catch(e){ }
+      }
+
+      // Expose these for future integration (e.g., window.startAssistant())
+      window.aiVoiceBubble = {
+        start: startAssistant,
+        stop: stopAssistant,
+        isActive: ()=>isActive
+      };
+
+      // initial state
+      setActive(false);
+
+    })();
+  </script>
+
+</body>
+</html>
