@@ -1,454 +1,584 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Voice Bubble — Frontend</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sleek AI Voice Assistant</title>
 
-  <!-- Google Font -->
-  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Google Font - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-  <style>
-    /* ===============================
-       AI Voice Bubble — style (RESPONSIVE)
-       Single-file frontend: HTML + CSS + JS
-       No frameworks. Accessible and responsive.
-       =============================== */
+    <!-- Tailwind CSS CDN for utility classes -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-    :root{
-      --bg-1: #021023;     /* deep navy */
-      --bg-2: #001827;     /* near-black teal */
-      --accent-1: #7df9ff; /* cyan-ish */
-      --accent-2: #8a6bff; /* violet */
-      --glass: rgba(255,255,255,0.06);
-      --muted: rgba(255,255,255,0.6);
-      --danger: #ff6b6b;
-    }
+    <style>
+        /* ===============================
+           Custom CSS for Sleek Design and Animations
+           =============================== */
+        :root {
+            --color-bg-dark: #0f172a; /* Slate-900 */
+            --color-accent-blue: #3b82f6; /* Blue-500 */
+            --color-accent-teal: #14b8a6; /* Teal-500 */
+            --color-glass: rgba(255, 255, 255, 0.08);
+            --color-text-light: #f8fafc; /* Slate-50 */
+            --color-shadow-light: rgba(59, 130, 246, 0.3);
+            --pulse-duration: 1.5s;
+        }
 
-    *{box-sizing:border-box}
-    html,body{height:100%;}
-    body{
-      margin:0;
-      font-family: 'Rubik', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-      -webkit-font-smoothing:antialiased;
-      -moz-osx-font-smoothing:grayscale;
-      background: linear-gradient(180deg,var(--bg-1),var(--bg-2));
-      color:#fff;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:32px;
-      gap:20px;
-      min-height:100vh;
-    }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--color-bg-dark);
+            color: var(--color-text-light);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden; /* Prevent wave overflow from causing scroll */
+            padding: 20px;
+        }
 
-    /* Main app card to center content and provide subtle depth */
-    .app-shell{
-      width:min(880px, 96vw);
-      max-width:960px;
-      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-      border-radius:20px;
-      padding:48px;
-      box-shadow: 0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      flex-direction:column;
-      gap:22px;
-    }
+        /* --- Main Container --- */
+        .assistant-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+            text-align: center;
+            width: 100%;
+            max-width: 400px; /* Constrain width on desktop */
+        }
 
-    /* Title + small description */
-    .app-title{
-      text-align:center;
-      margin-bottom:6px;
-    }
-    .app-title h1{
-      font-size:clamp(18px, 3.2vw, 28px);
-      margin:0;
-      font-weight:600;
-      letter-spacing:0.2px;
-    }
-    .app-title p{
-      margin:6px 0 0 0;
-      color:var(--muted);
-      font-size:clamp(12px, 1.4vw, 15px);
-    }
+        /* --- Status Message --- */
+        .status-message {
+            min-height: 2.5em; /* Reserve space to prevent layout shift */
+            transition: all 0.3s ease;
+            font-weight: 500;
+            opacity: 0.8;
+            color: var(--color-text-light);
+        }
 
-    /* Center area for the bubble + waves */
-    .center-area{
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap:18px;
-      width:100%;
-    }
+        /* --- AI Bubble (Mic Button) --- */
+        .ai-bubble {
+            position: relative;
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            background: var(--color-accent-blue);
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            border: 3px solid transparent;
+            z-index: 10;
+        }
 
-    /* The glowing circular AI button */
-    .ai-bubble{
-      --size: clamp(120px, 22vw, 200px); /* responsive size */
-      width:var(--size);
-      height:var(--size);
-      border-radius:50%;
-      display:grid;
-      place-items:center;
-      position:relative;
-      cursor:pointer;
-      transition:transform 280ms cubic-bezier(.2,.9,.3,1), box-shadow 280ms;
-      user-select:none;
-      outline: none;
-      border: 1px solid rgba(255,255,255,0.03);
-      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.03), transparent 25%), linear-gradient(135deg, rgba(138,107,255,0.12), rgba(125,249,255,0.06));
-      box-shadow:
-        0 8px 30px rgba(10,12,30,0.6),
-        0 0 40px rgba(138,107,255,0.08),
-        inset 0 4px 18px rgba(255,255,255,0.02);
-      backdrop-filter: blur(6px) saturate(1.05);
-    }
+        /* Hover effect */
+        .ai-bubble:not(.active):hover {
+            transform: scale(1.05);
+            background: #60a5fa; /* Blue-400 */
+        }
+        
+        /* Focus state */
+        .ai-bubble:focus {
+            outline: none;
+            border-color: var(--color-accent-teal);
+        }
 
-    /* Inner gradient circle that holds icon */
-    .ai-bubble .inner{
-      width:72%;
-      height:72%;
-      border-radius:50%;
-      display:grid;
-      place-items:center;
-      background:linear-gradient(180deg, rgba(138,107,255,0.18), rgba(125,249,255,0.06));
-      box-shadow: 0 6px 20px rgba(0,0,0,0.45), inset 0 2px 10px rgba(255,255,255,0.03);
-      transform:translateZ(0);
-    }
+        /* Active State (Listening/Speaking/Thinking) */
+        .ai-bubble.active {
+            background: var(--color-accent-teal);
+            transform: scale(0.95);
+            box-shadow: 0 0 0 10px var(--color-accent-teal), 0 0 30px var(--color-accent-teal);
+        }
 
-    /* Icon inside the inner circle */
-    .ai-bubble svg{
-      width:34%;
-      height:34%;
-      opacity:0.95;
-      filter: drop-shadow(0 4px 12px rgba(125,249,255,0.08));
-    }
+        /* Microphone Icon */
+        .mic-icon {
+            width: 50px;
+            height: 50px;
+            color: var(--color-text-light);
+            transition: transform 0.3s ease;
+        }
 
-    /* Pulse glow when active */
-    .ai-bubble.active{
-      animation: bubble-pulse 1600ms infinite;
-      transform: translateY(-6px) scale(1.02);
-      box-shadow:
-        0 14px 60px rgba(10,12,30,0.66),
-        0 0 120px rgba(125,249,255,0.14),
-        inset 0 6px 28px rgba(255,255,255,0.02);
-    }
+        .ai-bubble.active .mic-icon {
+            /* Simple spin when active */
+            transform: scale(0.8);
+        }
 
-    @keyframes bubble-pulse{
-      0%{ box-shadow: 0 8px 30px rgba(10,12,30,0.6), 0 0 40px rgba(138,107,255,0.06); transform: scale(1); }
-      50%{ box-shadow: 0 18px 80px rgba(10,12,30,0.6), 0 0 220px rgba(125,249,255,0.12); transform: scale(1.04) translateY(-8px); }
-      100%{ box-shadow: 0 8px 30px rgba(10,12,30,0.6), 0 0 40px rgba(138,107,255,0.06); transform: scale(1); }
-    }
+        /* --- Pulse Animation (Ambient Glow) --- */
+        .pulse-effect {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100%;
+            height: 100%;
+            background-color: var(--color-accent-blue);
+            border-radius: 50%;
+            opacity: 0;
+            transform: translate(-50%, -50%);
+            z-index: 9;
+        }
 
-    /* Decorative halo rings around bubble (only visible when active) */
-    .ai-bubble .halo{
-      position:absolute;
-      inset: -14%;
-      border-radius:50%;
-      pointer-events:none;
-      opacity:0;
-      transition:opacity 240ms;
-    }
-    .ai-bubble.active .halo{ opacity:1; }
-    .ai-bubble .halo::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: conic-gradient(
-    from 0deg,
-    rgba(125,249,255,0.15),
-    rgba(138,107,255,0.15),
-    rgba(125,249,255,0.15)
-  );
-  filter: blur(18px);
-  transform: scale(1.1);
-  animation: halo-rotate 8s linear infinite;
-}
+        .ai-bubble.active .pulse-effect {
+            animation: pulse-out var(--pulse-duration) infinite;
+        }
 
-@keyframes halo-rotate {
-  0% { transform: scale(1.1) rotate(0deg); }
-  100% { transform: scale(1.1) rotate(360deg); }
-}
+        @keyframes pulse-out {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+            100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
+        }
 
-    /* Waves container - simple bars that animate height */
-    .waves{
-      width: min(460px, 88%);
-      height: calc(var(--size) / 4.2);
-      display:flex;
-      gap:8px;
-      align-items:end;
-      justify-content:center;
-      overflow:visible;
-      visibility:hidden;
-      opacity:0;
-      transition:opacity 220ms, visibility 220ms;
-    }
+        /* --- Wave Visualizer (Listening) --- */
+        .waves {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            z-index: 8;
+        }
 
-    .waves.visible{
-      visibility:visible;
-      opacity:1;
-    }
+        .waves.visible {
+            opacity: 1;
+        }
 
-    /* Each bar style */
-    .wave-bar{
-      width: clamp(4px, 0.9vw, 8px);
-      background: linear-gradient(180deg, var(--accent-1), var(--accent-2));
-      border-radius:4px;
-      transform-origin: bottom center;
-      animation: wave 900ms infinite ease-in-out;
-      opacity:0.95;
-      box-shadow: 0 6px 12px rgba(10,12,30,0.5);
-    }
+        .wave {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 1px solid var(--color-accent-teal);
+            border-radius: 50%;
+            opacity: 0;
+            animation: wave-spread 2s infinite cubic-bezier(0.66, 0.0, 0.44, 1);
+        }
 
-    /* Stagger animation delays for variety */
-    .wave-bar:nth-child(1){ animation-delay: -700ms; }
-    .wave-bar:nth-child(2){ animation-delay: -600ms; }
-    .wave-bar:nth-child(3){ animation-delay: -500ms; }
-    .wave-bar:nth-child(4){ animation-delay: -400ms; }
-    .wave-bar:nth-child(5){ animation-delay: -300ms; }
-    .wave-bar:nth-child(6){ animation-delay: -200ms; }
-    .wave-bar:nth-child(7){ animation-delay: -100ms; }
-    .wave-bar:nth-child(8){ animation-delay: 0ms; }
+        .wave:nth-child(2) { animation-delay: 0.5s; }
+        .wave:nth-child(3) { animation-delay: 1.0s; }
 
-    @keyframes wave{
-      0%{ height: 18%; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.45)); }
-      50%{ height: 90%; }
-      100%{ height: 18%; }
-    }
+        @keyframes wave-spread {
+            0% { transform: scale(1); opacity: 1; border-width: 2px; }
+            100% { transform: scale(3.5); opacity: 0; border-width: 0.5px; }
+        }
+        
+        /* Stop Button Styling */
+        .btn-stop {
+            padding: 10px 20px;
+            border-radius: 9999px; /* Pill shape */
+            background: var(--color-accent-blue);
+            color: var(--color-text-light);
+            font-weight: 500;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: none;
+        }
 
-    /* Stop button */
-    .controls{
-      display:flex;
-      gap:12px;
-      align-items:center;
-      justify-content:center;
-      width:100%;
-    }
-    .btn{
-      padding:10px 18px;
-      border-radius:14px;
-      background:var(--glass);
-      color:var(--muted);
-      border:1px solid rgba(255,255,255,0.04);
-      font-weight:600;
-      cursor:pointer;
-      transition: all 180ms ease;
-      backdrop-filter: blur(6px);
-    }
-    .btn:active{ transform:translateY(1px); }
+        .btn-stop:hover {
+            background: #60a5fa;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+        }
 
-    .btn-stop{
-      background: linear-gradient(90deg, rgba(255,107,107,0.14), rgba(255,107,107,0.06));
-      color:#ffbcbc;
-      border: 1px solid rgba(255,107,107,0.12);
-      display:inline-flex;
-      gap:8px;
-      align-items:center;
-      padding:10px 16px;
-    }
+        .btn-stop.hidden {
+            visibility: hidden;
+            opacity: 0;
+            transform: translateY(10px);
+        }
 
-    /* Hide stop button when idle */
-    .btn-stop.hidden{ display:none; }
+        /* --- Response Box (Glassmorphism) --- */
+        .response-box {
+            background: var(--color-glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 20px;
+            width: 100%;
+            max-width: 400px;
+            min-height: 120px;
+            text-align: left;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease-out;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
 
-    /* Small footer / hint */
-    .hint{
-      color: var(--muted);
-      font-size: 13px;
-      text-align:center;
-      margin-top:6px;
-    }
+        .response-box.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .response-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--color-accent-teal);
+            margin-bottom: 8px;
+        }
+        
+        .response-content {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: var(--color-text-light);
+            opacity: 0.9;
+        }
 
-    /* Responsive adjustments */
-    @media (max-width:520px){
-      .app-shell{ padding:28px; border-radius: 12px; }
-      .ai-bubble{ --size: clamp(92px, 26vw, 140px); }
-      .waves{ gap:6px; }
-    }
-
-    @media (max-width:360px){
-      .ai-bubble{ --size: 92px; }
-      .app-shell{ padding:18px; }
-    }
-
-    /* Focus styles for accessibility */
-    .ai-bubble:focus{ box-shadow: 0 0 0 8px rgba(125,249,255,0.06), 0 10px 30px rgba(0,0,0,0.6); }
-
-    body {
-  background: linear-gradient(120deg, var(--bg-1), var(--bg-2), #0a1a3a);
-  background-size: 200% 200%;
-  animation: bgShift 10s ease-in-out infinite;
-}
-
-@keyframes bgShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-
-  </style>
+        /* ===============================
+           Mobile Responsiveness
+           =============================== */
+        @media (max-width: 600px) {
+            .assistant-container {
+                gap: 30px;
+            }
+            .ai-bubble {
+                width: 120px;
+                height: 120px;
+            }
+            .mic-icon {
+                width: 40px;
+                height: 40px;
+            }
+            .response-box {
+                min-height: 100px;
+            }
+        }
+    </style>
 </head>
 <body>
 
-  <main class="app-shell" role="application" aria-label="AI Voice Bubble App">
+    <section class="assistant-container">
+        <h1 class="text-3xl font-bold mb-4">Voice Assistant</h1>
 
-    <header class="app-title">
-      <h1>AI Voice Bubble</h1>
-      <p>Click the glowing orb to start. The waves animate while the assistant is active.</p>
-    </header>
+        <!-- Status Message Area -->
+        <p id="statusMessage" class="status-message">
+            Tap to start recording...
+        </p>
 
-    <section class="center-area">
+        <!-- AI Bubble / Mic Button -->
+        <div class="relative flex justify-center items-center w-40 h-40">
+            <button id="aiBubble" class="ai-bubble" aria-label="Start Voice Assistant" aria-pressed="false">
+                <!-- Inner Pulse Effect (Visible when Active) -->
+                <div class="pulse-effect"></div>
 
-      <!-- Main clickable bubble -->
-      <button id="aiBubble" class="ai-bubble" aria-pressed="false" aria-label="Start AI voice" title="Start AI">
-        <span class="halo" aria-hidden="true"></span>
-        <span class="inner" aria-hidden="true">
-          <!-- simple microphone SVG icon -->
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M12 14a3.5 3.5 0 0 0 3.5-3.5V6.5A3.5 3.5 0 0 0 12 3a3.5 3.5 0 0 0-3.5 3.5v4A3.5 3.5 0 0 0 12 14z" stroke="white" stroke-opacity="0.95" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M19 11.5a7 7 0 0 1-14 0" stroke="white" stroke-opacity="0.06" stroke-width="1.4" stroke-linecap="round"/>
-            <path d="M12 17v4" stroke="white" stroke-opacity="0.06" stroke-width="1.4" stroke-linecap="round"/>
-          </svg>
-        </span>
-      </button>
+                <!-- Mic Icon (Phosphor Icons - inline SVG for portability) -->
+                <svg class="mic-icon" fill="currentColor" viewBox="0 0 256 256">
+                    <path d="M128,176a48,48,0,0,0,48-48V64a48,48,0,0,0-96,0v64A48,48,0,0,0,128,176ZM96,64a32,32,0,0,1,64,0v64a32,32,0,0,1-64,0Z"></path>
+                    <path d="M208,128a8,8,0,0,1-16,0,64,64,0,0,0-128,0,8,8,0,0,1-16,0,80,80,0,0,1,72-80V32a8,8,0,0,1,16,0V48A80,80,0,0,1,208,128Z"></path>
+                    <path d="M168,200a8,8,0,0,1-8,8H96a8,8,0,0,1-8-8,8,8,0,0,1,8-8h64A8,8,0,0,1,168,200Z"></path>
+                </svg>
 
-      <!-- Animated waves (hidden when idle) -->
-      <div id="waves" class="waves" aria-hidden="true">
-        <div class="wave-bar"></div>
-        <div class="wave-bar"></div>
-        <div class="wave-bar"></div>
-        <div class="wave-bar"></div>
-        <div class="wave-bar"></div>
-        <div class="wave-bar"></div>
-        <div class="wave-bar"></div>
-        <div class="wave-bar"></div>
-      </div>
-      
+                <!-- Wave Visualizer (Visible when Listening) -->
+                <div id="waves" class="waves">
+                    <div class="wave"></div>
+                    <div class="wave"></div>
+                    <div class="wave"></div>
+                </div>
+            </button>
+        </div>
 
-      <div class="hint">Just a frontend mock model (no actual AI).</div>
+        <!-- Stop Button (for manual control during long recordings/playback) -->
+        <button id="stopBtn" class="btn-stop hidden" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+            Stop
+        </button>
+
+        <!-- Response Display Box -->
+        <div id="responseBox" class="response-box">
+            <div class="response-title">AI Response</div>
+            <p id="responseContent" class="response-content">The AI response will appear here after processing.</p>
+        </div>
 
     </section>
 
-  </main>
+    <!-- ========================= JavaScript — behavior and state ========================= -->
+    <script>
+        // Use an object to manage all state variables and UI elements
+        const AppState = {
+            STATUS_IDLE: 'Tap to start recording...',
+            STATUS_LISTENING: 'Listening... (Speak now)',
+            STATUS_THINKING: 'Thinking... Please wait.',
+            STATUS_SPEAKING: 'AI Speaking... Tap Stop to interrupt.',
+            
+            ui: {
+                aiBubble: document.getElementById('aiBubble'),
+                waves: document.getElementById('waves'),
+                stopBtn: document.getElementById('stopBtn'),
+                statusMessage: document.getElementById('statusMessage'),
+                responseBox: document.getElementById('responseBox'),
+                responseContent: document.getElementById('responseContent'),
+            },
+            
+            // State tracking
+            isRecording: false,
+            isSpeaking: false,
+            mediaRecorder: null,
+            audioChunks: [],
+            stream: null,
+            
+            // Audio/Speech APIs
+            speechSynth: window.speechSynthesis,
+        };
 
-  <!-- =========================
-       JavaScript — behavior
-       - Toggle active state
-       - Keyboard accessible (Enter/Space)
-       - Expose start/stop hooks for future voice integration
-       ========================= -->
-  <script>
-    (function(){
-      const aiBubble = document.getElementById('aiBubble');
-      const waves = document.getElementById('waves');
-      const stopBtn = document.getElementById('stopBtn');
+        // --- State Management and UI Updates ---
 
-      // internal state
-      let isActive = false;
+        function updateUI(status) {
+            AppState.ui.statusMessage.textContent = status;
+            const isActive = status !== AppState.STATUS_IDLE;
+            const isListening = status === AppState.STATUS_LISTENING;
+            const isSpeakingOrThinking = status === AppState.STATUS_SPEAKING || status === AppState.STATUS_THINKING;
+            
+            // Toggle Main Bubble Active State (Pulse)
+            AppState.ui.aiBubble.classList.toggle('active', isActive);
+            AppState.ui.aiBubble.setAttribute('aria-pressed', String(isActive));
+            
+            // Toggle Waves (Listening Visualizer)
+            AppState.ui.waves.classList.toggle('visible', isListening);
+            
+            // Toggle Stop Button
+            AppState.ui.stopBtn.classList.toggle('hidden', !isActive);
+            AppState.ui.stopBtn.setAttribute('aria-hidden', String(!isActive));
 
-      // Utility: set active UI
-      function setActive(on){
-        isActive = !!on;
-        aiBubble.classList.toggle('active', isActive);
-        aiBubble.setAttribute('aria-pressed', String(isActive));
+            // Hide response box when not speaking/thinking
+            AppState.ui.responseBox.classList.toggle('visible', isSpeakingOrThinking);
 
-        if(isActive){
-          waves.classList.add('visible');
-          stopBtn.classList.remove('hidden');
-          stopBtn.setAttribute('aria-hidden', 'false');
-        } else {
-          waves.classList.remove('visible');
-          stopBtn.classList.add('hidden');
-          stopBtn.setAttribute('aria-hidden', 'true');
+            // Change bubble background based on state
+            if (isSpeakingOrThinking) {
+                 // Use accent teal for thinking/speaking
+                AppState.ui.aiBubble.style.backgroundColor = 'var(--color-accent-teal)';
+            } else {
+                // Use accent blue for idle/listening
+                AppState.ui.aiBubble.style.backgroundColor = 'var(--color-accent-blue)';
+            }
+
+            // Play tones for feedback
+            if (status === AppState.STATUS_LISTENING) playClickTone();
+            if (status === AppState.STATUS_IDLE && !AppState.isRecording && !AppState.isSpeaking) playEndTone();
         }
-      }
 
-      // Public hooks to connect voice logic later
-      // For prototype frontend these will just toggle UI
-      function startAssistant(){
-        // Hook: Start speech recognition / AI streaming here in future
-        setActive(true);
-        // Add a small startup tone (optional) using WebAudio for nicer feel
-        playClickTone();
-      }
+        // --- Core Assistant Logic ---
 
-      function stopAssistant(){
-        // Hook: Stop recognition & TTS here
-        setActive(false);
-        playEndTone();
-      }
+        async function startRecording() {
+            if (AppState.isRecording || AppState.isSpeaking) return;
 
-      // Keyboard accessibility: Enter or Space triggers bubble click
-      aiBubble.addEventListener('keydown', (e)=>{
-        if(e.key === 'Enter' || e.key === ' '){
-          e.preventDefault();
-          aiBubble.click();
+            try {
+                // Request microphone access
+                AppState.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                AppState.isRecording = true;
+                AppState.audioChunks = [];
+                updateUI(AppState.STATUS_LISTENING);
+
+                // Create MediaRecorder instance
+                AppState.mediaRecorder = new MediaRecorder(AppState.stream);
+
+                AppState.mediaRecorder.ondataavailable = (event) => {
+                    AppState.audioChunks.push(event.data);
+                };
+
+                AppState.mediaRecorder.onstop = () => {
+                    processAudio(); // Starts the "Thinking" state
+                };
+
+                AppState.mediaRecorder.start();
+                console.log("Recording started...");
+
+            } catch (error) {
+                console.error("Error starting microphone or recording:", error);
+                // Inform user about mic permission issue
+                updateUI('ERROR: Please allow microphone access.');
+                setTimeout(() => updateUI(AppState.STATUS_IDLE), 3000);
+                AppState.isRecording = false;
+            }
         }
-      });
 
-      // Click bubble toggles start/stop
-      aiBubble.addEventListener('click', ()=>{
-        if(!isActive) startAssistant();
-        else stopAssistant();
-      });
+        function stopRecording() {
+            if (!AppState.isRecording) return;
+            
+            // Stop the MediaRecorder
+            if (AppState.mediaRecorder && AppState.mediaRecorder.state !== 'inactive') {
+                AppState.mediaRecorder.stop();
+            }
 
-      // Stop button explicit control
-      stopBtn.addEventListener('click', ()=>{
-        stopAssistant();
-      });
+            // Stop the microphone stream tracks
+            if (AppState.stream) {
+                AppState.stream.getTracks().forEach(track => track.stop());
+            }
 
-      /* ============ Small audio tones using WebAudio ============
-         These tones are optional and purely cosmetic to make the UI feel
-         more alive. They use very small oscillator bursts — no audio files.
-         You can remove these if you prefer silence.
-      */
+            AppState.isRecording = false;
+            // The UI state change to 'Thinking' happens in processAudio()
+        }
+        
+        function stopSpeaking() {
+             if (AppState.isSpeaking) {
+                AppState.speechSynth.cancel();
+                AppState.isSpeaking = false;
+                updateUI(AppState.STATUS_IDLE);
+                console.log("Speaking manually stopped.");
+            }
+        }
 
-      function playClickTone(){
-        try{
-          const ctx = new (window.AudioContext || window.webkitAudioContext)();
-          const o = ctx.createOscillator();
-          const g = ctx.createGain();
-          o.type = 'sine';
-          o.frequency.setValueAtTime(440, ctx.currentTime);
-          g.gain.setValueAtTime(0.0001, ctx.currentTime);
-          g.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + 0.01);
-          o.connect(g); g.connect(ctx.destination);
-          o.start();
-          g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
-          o.stop(ctx.currentTime + 0.26);
-        }catch(e){ /* ignore if WebAudio not allowed */ }
-      }
+        // The AI simulation pipeline
+        async function processAudio() {
+            updateUI(AppState.STATUS_THINKING);
+            console.log("Processing audio...");
 
-      function playEndTone(){
-        try{
-          const ctx = new (window.AudioContext || window.webkitAudioContext)();
-          const o = ctx.createOscillator();
-          const g = ctx.createGain();
-          o.type = 'triangle';
-          o.frequency.setValueAtTime(240, ctx.currentTime);
-          g.gain.setValueAtTime(0.0001, ctx.currentTime);
-          g.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 0.01);
-          o.connect(g); g.connect(ctx.destination);
-          o.start();
-          g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.28);
-          o.stop(ctx.currentTime + 0.29);
-        }catch(e){ }
-      }
+            // 1. Convert chunks to a single Blob
+            const audioBlob = new Blob(AppState.audioChunks, { type: 'audio/webm' });
 
-      // Expose these for future integration (e.g., window.startAssistant())
-      window.aiVoiceBubble = {
-        start: startAssistant,
-        stop: stopAssistant,
-        isActive: ()=>isActive
-      };
+            // 2. Simulated STT (Speech-to-Text) - Replaced by real API call later
+            const userQuery = await simulateSTT(audioBlob);
+            
+            // 3. Simulated LLM (Generative AI) - Replaced by real API call later
+            const aiResponseText = await simulateAIResponse(userQuery);
 
-      // initial state
-      setActive(false);
+            // 4. TTS (Text-to-Speech) using browser engine
+            speakResponse(aiResponseText);
+        }
+        
+        // --- API Simulation Functions (To be replaced by your backend calls) ---
+        
+        async function simulateSTT(audioBlob) {
+            // Simulate network delay
+            await new Promise(resolve => setTimeout(resolve, 800));
 
-    })();
-  </script>
+            const queries = [
+                "What is the importance of responsive design?",
+                "Tell me a short fun fact about coding.",
+                "How does the Web Audio API work?",
+                "Write a short, encouraging message for a developer."
+            ];
+            return queries[Math.floor(Math.random() * queries.length)];
+        }
 
+        async function simulateAIResponse(query) {
+            // Simulate network delay
+            await new Promise(resolve => setTimeout(resolve, 1500));
+
+            let response;
+            if (query.includes("responsive")) {
+                response = "Responsive design ensures your application looks great on any device, from a small phone to a large monitor. It's crucial for user experience and SEO.";
+            } else if (query.includes("fact")) {
+                response = "Did you know the first computer bug was an actual moth found in a relay of the Harvard Mark II computer in 1947? True story!";
+            } else if (query.includes("Web Audio API")) {
+                response = "The Web Audio API is a powerful JavaScript system for handling audio, allowing for complex routing and mixing of audio sources, even applying effects like reverb or delay.";
+            } else if (query.includes("message")) {
+                response = "Keep coding! Every line of code you write, even the messy ones, is a step forward. You're building something amazing, just keep going!";
+            } else {
+                response = "I'm sorry, I am currently in a simulated mode and can only answer questions about web development and fun facts.";
+            }
+            return response;
+        }
+
+        // --- Speech Output (Browser TTS) ---
+
+        function speakResponse(text) {
+            if (!AppState.speechSynth) {
+                AppState.ui.responseContent.textContent = "Error: Browser does not support Speech Synthesis.";
+                updateUI(AppState.STATUS_IDLE);
+                return;
+            }
+            
+            AppState.isSpeaking = true;
+            updateUI(AppState.STATUS_SPEAKING);
+            
+            AppState.ui.responseContent.textContent = text;
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Optional: Find a better voice (requires the voices to be loaded)
+            const voices = AppState.speechSynth.getVoices();
+            const enVoice = voices.find(v => v.lang.startsWith('en'));
+            if (enVoice) {
+                utterance.voice = enVoice;
+            }
+            
+            utterance.pitch = 1.0;
+            utterance.rate = 1.0;
+
+            utterance.onend = () => {
+                AppState.isSpeaking = false;
+                updateUI(AppState.STATUS_IDLE);
+                console.log("AI finished speaking.");
+            };
+            
+            utterance.onerror = (event) => {
+                AppState.isSpeaking = false;
+                updateUI(AppState.STATUS_IDLE);
+                console.error('SpeechSynthesisUtterance.onerror', event);
+            };
+
+            AppState.speechSynth.speak(utterance);
+        }
+        
+        // --- Event Listeners and Initialization ---
+
+        function initialize() {
+            // Main Button Click
+            AppState.ui.aiBubble.addEventListener('click', () => {
+                if (AppState.isSpeaking) {
+                    stopSpeaking(); // Interrupt if speaking
+                } else if (AppState.isRecording) {
+                    stopRecording(); // Stop recording
+                } else {
+                    startRecording(); // Start recording
+                }
+            });
+
+            // Stop Button Click
+            AppState.ui.stopBtn.addEventListener('click', () => {
+                if (AppState.isRecording) {
+                    stopRecording();
+                } else if (AppState.isSpeaking) {
+                    stopSpeaking();
+                }
+            });
+
+            updateUI(AppState.STATUS_IDLE);
+        }
+
+        // --- Web Audio Tones for Feedback ---
+
+        function playClickTone(){
+            try{
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.type = 'sine';
+                o.frequency.setValueAtTime(440, ctx.currentTime);
+                g.gain.setValueAtTime(0.0001, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + 0.01);
+                o.connect(g); g.connect(ctx.destination);
+                o.start();
+                g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+                o.stop(ctx.currentTime + 0.26);
+            }catch(e){ console.error("WebAudio error:", e); }
+        }
+
+        function playEndTone(){
+            try{
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.type = 'triangle';
+                o.frequency.setValueAtTime(240, ctx.currentTime);
+                g.gain.setValueAtTime(0.0001, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 0.01);
+                o.connect(g); g.connect(ctx.destination);
+                o.start();
+                g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.28);
+                o.stop(ctx.currentTime + 0.29);
+            }catch(e){ console.error("WebAudio error:", e); }
+        }
+
+        // Start the application after the window loads
+        window.onload = initialize;
+    </script>
 </body>
 </html>
