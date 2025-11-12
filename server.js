@@ -38,6 +38,15 @@ if (!OPENROUTER_KEY || !OPENROUTER_MODEL) {
 // 2. API ENDPOINT (Text-to-Text)
 // =========================================================
 
+// FIX: Add a basic GET route for the root path to prevent "Cannot GET /" errors on deployment platforms like Vercel.
+app.get('/', (req, res) => {
+    res.status(200).json({ 
+        status: 'ok', 
+        message: 'Voice Assistant Backend is running.',
+        model: OPENROUTER_MODEL 
+    });
+});
+
 app.post('/api/process-text', async (req, res) => {
     try {
         const userQuery = req.body.query;
