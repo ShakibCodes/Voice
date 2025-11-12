@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sleek AI Voice Assistant</title>
+
+    <!-- Google Font - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS CDN for utility classes -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        /* ===============================
+           Custom CSS for Sleek Design and Animations
+           =============================== */
+        :root {
+            --color-bg-dark: #0f172a; /* Slate-900 */
+            --color-accent-blue: #3b82f6; /* Blue-500 */
+            --color-accent-teal: #14b8a6; /* Teal-500 */
+            --color-glass: rgba(255, 255, 255, 0.08);
+            --color-text-light: #f8fafc; /* Slate-50 */
+            --color-shadow-light: rgba(59, 130, 246, 0.3);
+            --pulse-duration: 1.5s;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--color-bg-dark);
+            color: var(--color-text-light);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden; /* Prevent wave overflow from causing scroll */
+            padding: 20px;
+        }
+
+        /* --- Main Container --- */
+        .assistant-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+            text-align: center;
+            width: 100%;
+            max-width: 400px; /* Constrain width on desktop */
+        }
+
+        /* --- Status Message --- */
+        .status-message {
+            min-height: 2.5em; /* Reserve space to prevent layout shift */
+            transition: all 0.3s ease;
+            font-weight: 500;
+            opacity: 0.8;
+            color: var(--color-text-light);
+        }
+
+        /* --- AI Bubble (Mic Button) --- */
+        .ai-bubble {
+            position: relative;
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            background: var(--color-accent-blue);
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            border: 3px solid transparent;
+            z-index: 10;
+        }
+
+        /* Hover effect */
+        .ai-bubble:not(.active):hover {
+            transform: scale(1.05);
+            background: #60a5fa; /* Blue-400 */
+        }
+        
+        /* Focus state */
+        .ai-bubble:focus {
+            outline: none;
+            border-color: var(--color-accent-teal);
+        }
+
+        /* Active State (Listening/Speaking/Thinking) */
+        .ai-bubble.active {
+            background: var(--color-accent-teal);
+            transform: scale(0.95);
+            box-shadow: 0 0 0 10px var(--color-accent-teal), 0 0 30px var(--color-accent-teal);
+        }
+
+        /* Microphone Icon */
+        .mic-icon {
+            width: 50px;
+            height: 50px;
+            color: var(--color-text-light);
+            transition: transform 0.3s ease;
+        }
+
+        .ai-bubble.active .mic-icon {
+            /* Simple spin when active */
+            transform: scale(0.8);
+        }
+
+        /* --- Pulse Animation (Ambient Glow) --- */
+        .pulse-effect {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100%;
+            height: 100%;
+            background-color: var(--color-accent-blue);
+            border-radius: 50%;
+            opacity: 0;
+            transform: translate(-50%, -50%);
+            z-index: 9;
+        }
+
+        .ai-bubble.active .pulse-effect {
+            animation: pulse-out var(--pulse-duration) infinite;
+        }
+
+        @keyframes pulse-out {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+            100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
+        }
+
+        /* --- Wave Visualizer (Listening) --- */
+        .waves {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            z-index: 8;
+        }
+
+        .waves.visible {
+            opacity: 1;
+        }
+
+        .wave {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 1px solid var(--color-accent-teal);
+            border-radius: 50%;
+            opacity: 0;
+            animation: wave-spread 2s infinite cubic-bezier(0.66, 0.0, 0.44, 1);
+        }
+
+        .wave:nth-child(2) { animation-delay: 0.5s; }
+        .wave:nth-child(3) { animation-delay: 1.0s; }
+
+        @keyframes wave-spread {
+            0% { transform: scale(1); opacity: 1; border-width: 2px; }
+            100% { transform: scale(3.5); opacity: 0; border-width: 0.5px; }
+        }
+        
+        /* Stop Button Styling */
+        .btn-stop {
+            padding: 10px 20px;
+            border-radius: 9999px; /* Pill shape */
+            background: var(--color-accent-blue);
+            color: var(--color-text-light);
+            font-weight: 500;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: none;
+        }
+
+        .btn-stop:hover {
+            background: #60a5fa;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-stop.hidden {
+            visibility: hidden;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        /* --- Response Box (Glassmorphism) --- */
+        .response-box {
+            background: var(--color-glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 20px;
+            width: 100%;
+            max-width: 400px;
+            min-height: 120px;
+            text-align: left;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease-out;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .response-box.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .response-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--color-accent-teal);
+            margin-bottom: 8px;
+        }
+        
+        .response-content {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: var(--color-text-light);
+            opacity: 0.9;
+        }
+
+        /* ===============================
+           Mobile Responsiveness
+           =============================== */
+        @media (max-width: 600px) {
+            .assistant-container {
+                gap: 30px;
+            }
+            .ai-bubble {
+                width: 120px;
+                height: 120px;
+            }
+            .mic-icon {
+                width: 40px;
+                height: 40px;
+            }
+            .response-box {
+                min-height: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <section class="assistant-container">
+        <h1 class="text-3xl font-bold mb-4">Voice Assistant</h1>
+
+        <!-- Status Message Area -->
+        <p id="statusMessage" class="status-message">
+            Tap to start recording...
+        </p>
+
+        <!-- AI Bubble / Mic Button -->
+        <div class="relative flex justify-center items-center w-40 h-40">
+            <button id="aiBubble" class="ai-bubble" aria-label="Start Voice Assistant" aria-pressed="false">
+                <!-- Inner Pulse Effect (Visible when Active) -->
+                <div class="pulse-effect"></div>
+
+                <!-- Mic Icon (Phosphor Icons - inline SVG for portability) -->
+                <svg class="mic-icon" fill="currentColor" viewBox="0 0 256 256">
+                    <path d="M128,176a48,48,0,0,0,48-48V64a48,48,0,0,0-96,0v64A48,48,0,0,0,128,176ZM96,64a32,32,0,0,1,64,0v64a32,32,0,0,1-64,0Z"></path>
+                    <path d="M208,128a8,8,0,0,1-16,0,64,64,0,0,0-128,0,8,8,0,0,1-16,0,80,80,0,0,1,72-80V32a8,8,0,0,1,16,0V48A80,80,0,0,1,208,128Z"></path>
+                    <path d="M168,200a8,8,0,0,1-8,8H96a8,8,0,0,1-8-8,8,8,0,0,1,8-8h64A8,8,0,0,1,168,200Z"></path>
+                </svg>
+
+                <!-- Wave Visualizer (Visible when Listening) -->
+                <div id="waves" class="waves">
+                    <div class="wave"></div>
+                    <div class="wave"></div>
+                    <div class="wave"></div>
+                </div>
+            </button>
+        </div>
+
+        <!-- Stop Button (for manual control during long recordings/playback) -->
+        <button id="stopBtn" class="btn-stop hidden" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+            Stop
+        </button>
+
+        <!-- Response Display Box -->
+        <div id="responseBox" class="response-box">
+            <div class="response-title">AI Response</div>
+            <p id="responseContent" class="response-content">The AI response will appear here after processing.</p>
+        </div>
+
+    </section>
+
+    <!-- ========================= JavaScript — behavior and state ========================= -->
+    <script>
+    // --- Configuration ---
+    const BACKEND_URL = 'http://localhost:3000'; 
+    // You can try changing this name based on voices available on your OS (e.g., 'Google US English', 'Microsoft Zira')
+    const ASSISTANT_VOICE = 'Google UK English Male'; 
+
+    // --- State and UI Elements ---
+    const AppState = {
+        STATUS_IDLE: 'Tap to start speaking...',
+        STATUS_STT: 'Listening... (Speak now)',
+        STATUS_THINKING: 'Thinking... (Getting AI response)',
+        STATUS_SPEAKING: 'AI Speaking... (Tap Stop to interrupt)',
+        
+        ui: {
+            aiBubble: document.getElementById('aiBubble'),
+            waves: document.getElementById('waves'),
+            stopBtn: document.getElementById('stopBtn'),
+            statusMessage: document.getElementById('statusMessage'),
+            responseBox: document.getElementById('responseBox'),
+            responseContent: document.getElementById('responseContent'),
+            // Note: We don't have a dedicated error box in the current HTML structure,
+            // so we'll use the status message for errors.
+        },
+        
+        isListening: false,
+        isSpeaking: false,
+        recognition: null, // Holds the SpeechRecognition object
+        speechSynthesis: window.speechSynthesis,
+    };
+
+    // --- UI Management ---
+    function updateUI(status, error = null) {
+        AppState.ui.statusMessage.textContent = error ? `ERROR: ${error}` : status;
+
+        const isActive = status !== AppState.STATUS_IDLE || error;
+        const isListening = status === AppState.STATUS_STT;
+        const isSpeakingOrThinking = status === AppState.STATUS_SPEAKING || status === AppState.STATUS_THINKING;
+        
+        // --- Visual Toggles ---
+        AppState.ui.aiBubble.classList.toggle('active', isActive && !error);
+        AppState.ui.waves.classList.toggle('visible', isListening);
+        AppState.ui.stopBtn.classList.toggle('hidden', !isActive);
+        
+        // Show/Hide Response Box
+        AppState.ui.responseBox.classList.toggle('visible', isSpeakingOrThinking);
+        if (!isSpeakingOrThinking) {
+            AppState.ui.responseContent.textContent = error ? 'An error occurred.' : "The AI response will appear here.";
+        }
+
+        // --- Color Change based on State ---
+        if (error) {
+            AppState.ui.aiBubble.style.backgroundColor = '#ef4444'; // Red for error
+        } else if (isSpeakingOrThinking) {
+            AppState.ui.aiBubble.style.backgroundColor = 'var(--color-accent-teal)'; // Teal for thinking/speaking
+        } else {
+            AppState.ui.aiBubble.style.backgroundColor = 'var(--color-accent-blue)'; // Blue for idle/listening
+        }
+
+        // --- Tones for Feedback (Uses your existing WebAudio functions) ---
+        if (status === AppState.STATUS_STT && !AppState.isListening) playClickTone();
+        if (status === AppState.STATUS_IDLE && !AppState.isListening && !AppState.isSpeaking) playEndTone();
+    }
+
+    // --- Speech-to-Text (STT) Logic (Browser Native) ---
+    function startListening() {
+        if (AppState.isListening || AppState.isSpeaking) return;
+
+        // Check for Web Speech API support
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            updateUI(AppState.STATUS_IDLE, 'Speech Recognition is not supported in this browser (Try Chrome or Edge).');
+            return;
+        }
+
+        AppState.recognition = new SpeechRecognition();
+        AppState.recognition.continuous = false; // Stop after a single phrase
+        AppState.recognition.interimResults = false;
+        AppState.recognition.lang = 'en-US'; 
+
+        AppState.recognition.onstart = () => {
+            AppState.isListening = true;
+            updateUI(AppState.STATUS_STT);
+        };
+
+        AppState.recognition.onresult = (event) => {
+            // Get the final transcript
+            const last = event.results.length - 1;
+            const transcript = event.results[last][0].transcript;
+            console.log("Transcript:", transcript);
+            
+            // Send the text to the backend immediately
+            sendTextToBackend(transcript);
+        };
+
+        AppState.recognition.onerror = (event) => {
+            console.error('STT Error:', event.error);
+            // Ignore 'no-speech' error if the user clicks stop or silence occurs
+            if (event.error !== 'no-speech') {
+                updateUI(AppState.STATUS_IDLE, `STT Error: ${event.error}.`);
+            } else {
+                updateUI(AppState.STATUS_IDLE, 'No clear speech detected. Try again.');
+            }
+        };
+
+        AppState.recognition.onend = () => {
+            AppState.isListening = false;
+            // Only reset UI if a result hasn't already triggered the THINKING state
+            if (AppState.ui.statusMessage.textContent === AppState.STATUS_STT) {
+                 updateUI(AppState.STATUS_IDLE, 'Listening ended.');
+            }
+        };
+
+        AppState.recognition.start();
+    }
+
+    function stopListening() {
+        if (AppState.isListening && AppState.recognition) {
+            AppState.recognition.stop();
+        }
+    }
+
+    // --- Text-to-Speech (TTS) Logic (Browser Native) ---
+    function speak(text) {
+        if (AppState.isSpeaking) {
+            stopSpeaking();
+        }
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        // Find a natural-sounding voice
+        const voices = AppState.speechSynthesis.getVoices();
+        const selectedVoice = voices.find(v => v.name.includes(ASSISTANT_VOICE) || v.default);
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        }
+
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+
+        utterance.onstart = () => {
+            AppState.isSpeaking = true;
+            updateUI(AppState.STATUS_SPEAKING);
+        };
+
+        utterance.onend = () => {
+            AppState.isSpeaking = false;
+            updateUI(AppState.STATUS_IDLE);
+        };
+
+        utterance.onerror = (event) => {
+            console.error('TTS Error:', event);
+            AppState.isSpeaking = false;
+            updateUI(AppState.STATUS_IDLE, 'Error playing back AI voice.');
+        };
+
+        AppState.speechSynthesis.speak(utterance);
+    }
+    
+    function stopSpeaking() {
+        if (AppState.isSpeaking) {
+            AppState.speechSynthesis.cancel();
+            AppState.isSpeaking = false;
+            updateUI(AppState.STATUS_IDLE);
+        }
+    }
+
+    // --- Backend Communication (Text Only) ---
+    async function sendTextToBackend(query) {
+        updateUI(AppState.STATUS_THINKING);
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/process-text`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json' 
+                },
+                body: JSON.stringify({ query: query })
+            });
+
+            if (!response.ok) {
+                const errorJson = await response.json().catch(() => ({ error: 'Unknown server error.' }));
+                throw new Error(errorJson.error || `Server responded with status ${response.status}.`);
+            }
+            
+            const data = await response.json();
+            const responseText = data.text || "I apologize, I could not generate a response.";
+            
+            // 1. Update the UI with the text
+            AppState.ui.responseContent.textContent = responseText;
+
+            // 2. Start the native browser TTS
+            speak(responseText);
+
+        } catch (error) {
+            console.error("Backend Error:", error);
+            updateUI(AppState.STATUS_IDLE, `Backend Error: ${error.message}. Check your server console for details.`);
+        }
+    }
+
+    // --- Event Handlers and Initialization ---
+
+    function handleMainClick() {
+        if (AppState.isSpeaking) {
+            stopSpeaking(); 
+        } else if (AppState.isListening) {
+            stopListening(); 
+        } else {
+            startListening(); 
+        }
+    }
+
+    function initialize() {
+        // Main Button Click
+        AppState.ui.aiBubble.addEventListener('click', handleMainClick);
+
+        // Stop Button Click
+        AppState.ui.stopBtn.addEventListener('click', () => {
+            if (AppState.isSpeaking) {
+                stopSpeaking();
+            } else if (AppState.isListening) {
+                // Clicking stop while listening should halt STT without triggering the backend call
+                stopListening(); 
+                updateUI(AppState.STATUS_IDLE, 'Recording interrupted.');
+            }
+        });
+
+        // Ensure voices are loaded (critical for TTS)
+        if (AppState.speechSynthesis.onvoiceschanged !== undefined) {
+            AppState.speechSynthesis.onvoiceschanged = () => {
+                console.log("SpeechSynthesis voices loaded.");
+            };
+        }
+
+        updateUI(AppState.STATUS_IDLE);
+    }
+    
+    // --- Web Audio Tones (Kept from your original HTML) ---
+    function playClickTone(){
+        try{
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = 'sine';
+            o.frequency.setValueAtTime(440, ctx.currentTime);
+            g.gain.setValueAtTime(0.0001, ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + 0.01);
+            o.connect(g); g.connect(ctx.destination);
+            o.start();
+            g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+            o.stop(ctx.currentTime + 0.26);
+        }catch(e){ console.error("WebAudio error:", e); }
+    }
+
+    function playEndTone(){
+        try{
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = 'triangle';
+            o.frequency.setValueAtTime(240, ctx.currentTime);
+            g.gain.setValueAtTime(0.0001, ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 0.01);
+            o.connect(g); g.connect(ctx.destination);
+            o.start();
+            g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.28);
+            o.stop(ctx.currentTime + 0.29);
+        }catch(e){ console.error("WebAudio error:", e); }
+    }
+
+
+    // Start the application after the window loads
+    window.onload = initialize;
+</script>   
+</body>
+</html>
