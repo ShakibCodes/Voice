@@ -5,10 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sleek AI Voice Assistant</title>
 
-    <!-- Google Font - Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Tailwind CSS CDN for utility classes -->
     <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
@@ -19,7 +17,7 @@
             --color-bg-dark: #0f172a; /* Slate-900 */
             --color-accent-blue: #3b82f6; /* Blue-500 */
             --color-accent-teal: #14b8a6; /* Teal-500 */
-            --color-glass: rgba(255, 255, 255, 0.08);
+            --color-glass: rgba(255, 255, 255, 0.1); /* Slightly more opaque glass */
             --color-text-light: #f8fafc; /* Slate-50 */
             --color-shadow-light: rgba(59, 130, 246, 0.3);
             --pulse-duration: 1.5s;
@@ -34,8 +32,9 @@
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            overflow: hidden; /* Prevent wave overflow from causing scroll */
+            overflow-x: hidden; /* Prevent horizontal scroll */
             padding: 20px;
+            box-sizing: border-box;
         }
 
         /* --- Main Container --- */
@@ -46,12 +45,19 @@
             gap: 40px;
             text-align: center;
             width: 100%;
-            max-width: 400px; /* Constrain width on desktop */
+            max-width: 500px; /* Increased max width for desktop display */
+            padding-top: 20px;
         }
+        
+        /* Heading */
+        .assistant-container h1 {
+            font-size: 2.25rem; /* Larger heading */
+        }
+
 
         /* --- Status Message --- */
         .status-message {
-            min-height: 2.5em; /* Reserve space to prevent layout shift */
+            min-height: 2.5em; 
             transition: all 0.3s ease;
             font-weight: 500;
             opacity: 0.8;
@@ -91,7 +97,8 @@
         .ai-bubble.active {
             background: var(--color-accent-teal);
             transform: scale(0.95);
-            box-shadow: 0 0 0 10px var(--color-accent-teal), 0 0 30px var(--color-accent-teal);
+            /* Updated shadow for a deeper glow effect */
+            box-shadow: 0 0 0 8px rgba(20, 184, 166, 0.4), 0 0 25px rgba(20, 184, 166, 0.8);
         }
 
         /* Microphone Icon */
@@ -103,7 +110,6 @@
         }
 
         .ai-bubble.active .mic-icon {
-            /* Simple spin when active */
             transform: scale(0.8);
         }
 
@@ -170,7 +176,7 @@
         /* Stop Button Styling */
         .btn-stop {
             padding: 10px 20px;
-            border-radius: 9999px; /* Pill shape */
+            border-radius: 9999px; 
             background: var(--color-accent-blue);
             color: var(--color-text-light);
             font-weight: 500;
@@ -180,6 +186,7 @@
             align-items: center;
             gap: 8px;
             border: none;
+            cursor: pointer;
         }
 
         .btn-stop:hover {
@@ -194,21 +201,21 @@
             transform: translateY(10px);
         }
 
-        /* --- Response Box (Glassmorphism) --- */
+        /* --- Response Box (Glassmorphism & New Look) --- */
         .response-box {
             background: var(--color-glass);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 12px;
-            padding: 20px;
+            backdrop-filter: blur(15px); /* Increased blur */
+            border: 1px solid rgba(255, 255, 255, 0.2); /* Stronger border */
+            border-radius: 16px; /* Slightly more rounded corners */
+            padding: 25px; /* Increased padding */
             width: 100%;
-            max-width: 400px;
-            min-height: 120px;
+            max-width: 500px; 
+            min-height: 140px; /* Increased min height */
             text-align: left;
             opacity: 0;
             transform: translateY(20px);
             transition: all 0.5s ease-out;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.4); /* Stronger shadow */
         }
 
         .response-box.visible {
@@ -217,17 +224,43 @@
         }
         
         .response-title {
-            font-size: 1.125rem;
-            font-weight: 600;
+            font-size: 1.25rem; /* Larger title */
+            font-weight: 700;
             color: var(--color-accent-teal);
-            margin-bottom: 8px;
+            margin-bottom: 12px;
+            border-bottom: 2px solid rgba(20, 184, 166, 0.3); /* Subtle separator */
+            padding-bottom: 5px;
         }
         
         .response-content {
-            font-size: 0.95rem;
-            line-height: 1.5;
+            font-size: 1rem; /* Slightly larger text */
+            line-height: 1.6;
             color: var(--color-text-light);
-            opacity: 0.9;
+            opacity: 0.95;
+            min-height: 50px; /* Ensure space for content */
+        }
+        
+        /* --- Typing Cursor Animation --- */
+        #responseContent::after {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 1.2em;
+            background-color: var(--color-accent-teal);
+            margin-left: 4px;
+            vertical-align: middle;
+            animation: blink-cursor 0.7s infinite;
+            opacity: 0; /* Default hidden */
+        }
+
+        /* Show cursor only when typing/thinking */
+        .is-typing #responseContent::after {
+            opacity: 1;
+        }
+
+        @keyframes blink-cursor {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
         }
 
         /* ===============================
@@ -236,6 +269,10 @@
         @media (max-width: 600px) {
             .assistant-container {
                 gap: 30px;
+                max-width: 90%; /* Use more screen space */
+            }
+            .assistant-container h1 {
+                font-size: 2rem;
             }
             .ai-bubble {
                 width: 120px;
@@ -246,7 +283,15 @@
                 height: 40px;
             }
             .response-box {
-                min-height: 100px;
+                min-height: 120px;
+                padding: 20px;
+                border-radius: 12px;
+            }
+            .response-title {
+                 font-size: 1.1rem;
+            }
+            .response-content {
+                font-size: 0.95rem;
             }
         }
     </style>
@@ -254,27 +299,22 @@
 <body>
 
     <section class="assistant-container">
-        <h1 class="text-3xl font-bold mb-4">Voice Assistant</h1>
+        <h1 class="text-3xl font-bold mb-4">Sleek Voice AI</h1>
 
-        <!-- Status Message Area -->
         <p id="statusMessage" class="status-message">
             Tap to start recording...
         </p>
 
-        <!-- AI Bubble / Mic Button -->
         <div class="relative flex justify-center items-center w-40 h-40">
             <button id="aiBubble" class="ai-bubble" aria-label="Start Voice Assistant" aria-pressed="false">
-                <!-- Inner Pulse Effect (Visible when Active) -->
                 <div class="pulse-effect"></div>
 
-                <!-- Mic Icon (Phosphor Icons - inline SVG for portability) -->
                 <svg class="mic-icon" fill="currentColor" viewBox="0 0 256 256">
                     <path d="M128,176a48,48,0,0,0,48-48V64a48,48,0,0,0-96,0v64A48,48,0,0,0,128,176ZM96,64a32,32,0,0,1,64,0v64a32,32,0,0,1-64,0Z"></path>
                     <path d="M208,128a8,8,0,0,1-16,0,64,64,0,0,0-128,0,8,8,0,0,1-16,0,80,80,0,0,1,72-80V32a8,8,0,0,1,16,0V48A80,80,0,0,1,208,128Z"></path>
                     <path d="M168,200a8,8,0,0,1-8,8H96a8,8,0,0,1-8-8,8,8,0,0,1,8-8h64A8,8,0,0,1,168,200Z"></path>
                 </svg>
 
-                <!-- Wave Visualizer (Visible when Listening) -->
                 <div id="waves" class="waves">
                     <div class="wave"></div>
                     <div class="wave"></div>
@@ -283,13 +323,11 @@
             </button>
         </div>
 
-        <!-- Stop Button (for manual control during long recordings/playback) -->
         <button id="stopBtn" class="btn-stop hidden" aria-hidden="true">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
             Stop
         </button>
 
-        <!-- Response Display Box -->
         <div id="responseBox" class="response-box">
             <div class="response-title">AI Response</div>
             <p id="responseContent" class="response-content">The AI response will appear here after processing.</p>
@@ -297,17 +335,16 @@
 
     </section>
 
-    <!-- ========================= JavaScript — behavior and state ========================= -->
     <script>
         // --- Configuration ---
         const BACKEND_URL = 'http://localhost:3000'; 
-        // Try changing this name based on voices available on your OS (e.g., 'Google US English', 'Microsoft Zira')
         const ASSISTANT_VOICE = 'Google UK English Male'; 
+        const TYPING_SPEED = 20; // Milliseconds per character for typing effect
 
         // Use an object to manage all state variables and UI elements
         const AppState = {
             STATUS_IDLE: 'Tap to start speaking...',
-            STATUS_STT: 'Listening... (Speak now)', // Renamed for clarity
+            STATUS_STT: 'Listening... (Speak now)', 
             STATUS_THINKING: 'Thinking... Please wait.',
             STATUS_SPEAKING: 'AI Speaking... Tap Stop to interrupt.',
             
@@ -321,9 +358,10 @@
             },
             
             // State tracking
-            isListening: false, // New state for SpeechRecognition
+            isListening: false, 
             isSpeaking: false,
-            recognition: null, // Holds the SpeechRecognition object
+            isTyping: false, // New state for typing animation
+            recognition: null, 
             
             // Audio/Speech APIs
             speechSynth: window.speechSynthesis,
@@ -349,8 +387,13 @@
             AppState.ui.stopBtn.classList.toggle('hidden', !isActive);
             AppState.ui.stopBtn.setAttribute('aria-hidden', String(!isActive));
 
-            // Show/Hide Response Box
-            AppState.ui.responseBox.classList.toggle('visible', isSpeakingOrThinking);
+            // Show/Hide Response Box (Keep visible if speaking, typing, or thinking)
+            AppState.ui.responseBox.classList.toggle('visible', isSpeakingOrThinking || AppState.isTyping);
+            
+            // Toggle Typing Cursor (Only show when thinking/typing)
+            const showCursor = status === AppState.STATUS_THINKING || AppState.isTyping;
+            AppState.ui.responseContent.parentElement.classList.toggle('is-typing', showCursor);
+
 
             // Change bubble background based on state
             if (error) {
@@ -373,16 +416,18 @@
         function startListening() {
             if (AppState.isListening || AppState.isSpeaking) return;
 
-            // FIX: Check for Web Speech API support
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
                 updateUI(AppState.STATUS_IDLE, 'Speech Recognition is not supported (Try Chrome or Edge).');
                 return;
             }
 
-            // Create and configure the SpeechRecognition instance
+            // Clear previous content
+            AppState.ui.responseContent.textContent = "Processing your request..."; 
+            AppState.ui.responseBox.classList.remove('visible'); // Hide box briefly on new start
+
             AppState.recognition = new SpeechRecognition();
-            AppState.recognition.continuous = false; // Stop after a single phrase
+            AppState.recognition.continuous = false; 
             AppState.recognition.interimResults = false;
             AppState.recognition.lang = 'en-US'; 
 
@@ -392,18 +437,15 @@
             };
 
             AppState.recognition.onresult = (event) => {
-                // Get the final transcript
                 const last = event.results.length - 1;
                 const transcript = event.results[last][0].transcript;
                 console.log("Transcript:", transcript);
                 
-                // Send the text to the backend
-                sendTextToBackend(transcript); //specially this line
+                sendTextToBackend(transcript);
             };
 
             AppState.recognition.onerror = (event) => {
                 console.error('STT Error:', event.error);
-                // Only show a serious error, otherwise let onend handle it.
                 if (event.error !== 'no-speech' && event.error !== 'aborted') {
                     updateUI(AppState.STATUS_IDLE, `STT Error: ${event.error}.`);
                 } else if (event.error === 'no-speech') {
@@ -413,7 +455,6 @@
 
             AppState.recognition.onend = () => {
                 AppState.isListening = false;
-                // If the UI is still in the STT state, reset it.
                 if (AppState.ui.statusMessage.textContent === AppState.STATUS_STT) {
                      updateUI(AppState.STATUS_IDLE, 'Listening ended (No result).');
                 }
@@ -425,7 +466,6 @@
         function stopListening() {
             if (AppState.isListening && AppState.recognition) {
                 AppState.recognition.stop();
-                // When manually stopped, update UI immediately
                 updateUI(AppState.STATUS_IDLE); 
             }
         }
@@ -444,7 +484,6 @@
             
             const utterance = new SpeechSynthesisUtterance(text);
             
-            // Find a natural-sounding voice
             const voices = AppState.speechSynth.getVoices();
             const selectedVoice = voices.find(v => v.name.includes(ASSISTANT_VOICE) || v.default);
             if (selectedVoice) {
@@ -456,7 +495,10 @@
 
             utterance.onend = () => {
                 AppState.isSpeaking = false;
-                updateUI(AppState.STATUS_IDLE);
+                // Only go to idle if we aren't also typing
+                if (!AppState.isTyping) { 
+                    updateUI(AppState.STATUS_IDLE);
+                }
                 console.log("AI finished speaking.");
             };
             
@@ -477,6 +519,37 @@
                 console.log("Speaking manually stopped.");
             }
         }
+        
+        // --- NEW: Typing Animation Logic ---
+        function typeResponseText(fullText) {
+            AppState.isTyping = true;
+            AppState.ui.responseContent.textContent = ''; // Clear content for typing
+            AppState.ui.responseBox.classList.add('visible'); // Ensure box is visible
+            
+            // Set status to thinking so the UI changes to the teal color and cursor shows
+            updateUI(AppState.STATUS_THINKING); 
+
+            let charIndex = 0;
+            
+            const typingInterval = setInterval(() => {
+                if (charIndex < fullText.length) {
+                    AppState.ui.responseContent.textContent += fullText.charAt(charIndex);
+                    charIndex++;
+                } else {
+                    clearInterval(typingInterval);
+                    AppState.isTyping = false;
+                    
+                    // Once typing is done, start speaking the text
+                    speakResponse(fullText);
+                    
+                    // If speaking fails or is stopped, the speaking function will handle the transition to IDLE
+                }
+            }, TYPING_SPEED);
+            
+            // Return the interval ID so it can be cleared if needed (e.g., in a future 'stop' feature)
+            return typingInterval;
+        }
+
 
         // --- Backend Communication (Text Only) ---
         async function sendTextToBackend(query) {
@@ -499,15 +572,13 @@
                 const data = await response.json();
                 const responseText = data.text || "I apologize, I could not generate a response.";
                 
-                // 1. Update the UI with the text
-                AppState.ui.responseContent.textContent = responseText;
+                // 1. Start the Typing Animation instead of immediately setting textContent
+                typeResponseText(responseText); 
 
-                // 2. Start the native browser TTS
-                speakResponse(responseText);
+                // 2. TTS is now called automatically by typeResponseText() after the typing is finished
 
             } catch (error) {
                 console.error("Backend Error:", error);
-                // This is where the original 'fetch is not a function' error was caught
                 updateUI(AppState.STATUS_IDLE, `Backend Error: ${error.message}. Check your server console.`);
             }
         }
@@ -516,11 +587,11 @@
 
         function handleMainClick() {
             if (AppState.isSpeaking) {
-                stopSpeaking(); // Interrupt if speaking
+                stopSpeaking(); 
             } else if (AppState.isListening) {
-                stopListening(); // Stop STT
+                stopListening(); 
             } else {
-                startListening(); // Start STT
+                startListening(); 
             }
         }
 
@@ -530,6 +601,7 @@
 
             // Stop Button Click
             AppState.ui.stopBtn.addEventListener('click', () => {
+                // Add logic to interrupt typing if it were to be implemented later
                 if (AppState.isSpeaking) {
                     stopSpeaking();
                 } else if (AppState.isListening) {
@@ -548,7 +620,7 @@
             updateUI(AppState.STATUS_IDLE);
         }
 
-        // --- Web Audio Tones for Feedback (Kept from your original HTML) ---
+        // --- Web Audio Tones for Feedback ---
 
         function playClickTone(){
             try{
