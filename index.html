@@ -299,277 +299,291 @@
 
     <!-- ========================= JavaScript — behavior and state ========================= -->
     <script>
-    // --- Configuration ---
-    const BACKEND_URL = 'http://localhost:3000'; 
-    // You can try changing this name based on voices available on your OS (e.g., 'Google US English', 'Microsoft Zira')
-    const ASSISTANT_VOICE = 'Google UK English Male'; 
+        // --- Configuration ---
+        const BACKEND_URL = 'http://localhost:3000'; 
+        // Try changing this name based on voices available on your OS (e.g., 'Google US English', 'Microsoft Zira')
+        const ASSISTANT_VOICE = 'Google UK English Male'; 
 
-    // --- State and UI Elements ---
-    const AppState = {
-        STATUS_IDLE: 'Tap to start speaking...',
-        STATUS_STT: 'Listening... (Speak now)',
-        STATUS_THINKING: 'Thinking... (Getting AI response)',
-        STATUS_SPEAKING: 'AI Speaking... (Tap Stop to interrupt)',
-        
-        ui: {
-            aiBubble: document.getElementById('aiBubble'),
-            waves: document.getElementById('waves'),
-            stopBtn: document.getElementById('stopBtn'),
-            statusMessage: document.getElementById('statusMessage'),
-            responseBox: document.getElementById('responseBox'),
-            responseContent: document.getElementById('responseContent'),
-            // Note: We don't have a dedicated error box in the current HTML structure,
-            // so we'll use the status message for errors.
-        },
-        
-        isListening: false,
-        isSpeaking: false,
-        recognition: null, // Holds the SpeechRecognition object
-        speechSynthesis: window.speechSynthesis,
-    };
-
-    // --- UI Management ---
-    function updateUI(status, error = null) {
-        AppState.ui.statusMessage.textContent = error ? `ERROR: ${error}` : status;
-
-        const isActive = status !== AppState.STATUS_IDLE || error;
-        const isListening = status === AppState.STATUS_STT;
-        const isSpeakingOrThinking = status === AppState.STATUS_SPEAKING || status === AppState.STATUS_THINKING;
-        
-        // --- Visual Toggles ---
-        AppState.ui.aiBubble.classList.toggle('active', isActive && !error);
-        AppState.ui.waves.classList.toggle('visible', isListening);
-        AppState.ui.stopBtn.classList.toggle('hidden', !isActive);
-        
-        // Show/Hide Response Box
-        AppState.ui.responseBox.classList.toggle('visible', isSpeakingOrThinking);
-        if (!isSpeakingOrThinking) {
-            AppState.ui.responseContent.textContent = error ? 'An error occurred.' : "The AI response will appear here.";
-        }
-
-        // --- Color Change based on State ---
-        if (error) {
-            AppState.ui.aiBubble.style.backgroundColor = '#ef4444'; // Red for error
-        } else if (isSpeakingOrThinking) {
-            AppState.ui.aiBubble.style.backgroundColor = 'var(--color-accent-teal)'; // Teal for thinking/speaking
-        } else {
-            AppState.ui.aiBubble.style.backgroundColor = 'var(--color-accent-blue)'; // Blue for idle/listening
-        }
-
-        // --- Tones for Feedback (Uses your existing WebAudio functions) ---
-        if (status === AppState.STATUS_STT && !AppState.isListening) playClickTone();
-        if (status === AppState.STATUS_IDLE && !AppState.isListening && !AppState.isSpeaking) playEndTone();
-    }
-
-    // --- Speech-to-Text (STT) Logic (Browser Native) ---
-    function startListening() {
-        if (AppState.isListening || AppState.isSpeaking) return;
-
-        // Check for Web Speech API support
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            updateUI(AppState.STATUS_IDLE, 'Speech Recognition is not supported in this browser (Try Chrome or Edge).');
-            return;
-        }
-
-        AppState.recognition = new SpeechRecognition();
-        AppState.recognition.continuous = false; // Stop after a single phrase
-        AppState.recognition.interimResults = false;
-        AppState.recognition.lang = 'en-US'; 
-
-        AppState.recognition.onstart = () => {
-            AppState.isListening = true;
-            updateUI(AppState.STATUS_STT);
-        };
-
-        AppState.recognition.onresult = (event) => {
-            // Get the final transcript
-            const last = event.results.length - 1;
-            const transcript = event.results[last][0].transcript;
-            console.log("Transcript:", transcript);
+        // Use an object to manage all state variables and UI elements
+        const AppState = {
+            STATUS_IDLE: 'Tap to start speaking...',
+            STATUS_STT: 'Listening... (Speak now)', // Renamed for clarity
+            STATUS_THINKING: 'Thinking... Please wait.',
+            STATUS_SPEAKING: 'AI Speaking... Tap Stop to interrupt.',
             
-            // Send the text to the backend immediately
-            sendTextToBackend(transcript);
+            ui: {
+                aiBubble: document.getElementById('aiBubble'),
+                waves: document.getElementById('waves'),
+                stopBtn: document.getElementById('stopBtn'),
+                statusMessage: document.getElementById('statusMessage'),
+                responseBox: document.getElementById('responseBox'),
+                responseContent: document.getElementById('responseContent'),
+            },
+            
+            // State tracking
+            isListening: false, // New state for SpeechRecognition
+            isSpeaking: false,
+            recognition: null, // Holds the SpeechRecognition object
+            
+            // Audio/Speech APIs
+            speechSynth: window.speechSynthesis,
         };
 
-        AppState.recognition.onerror = (event) => {
-            console.error('STT Error:', event.error);
-            // Ignore 'no-speech' error if the user clicks stop or silence occurs
-            if (event.error !== 'no-speech') {
-                updateUI(AppState.STATUS_IDLE, `STT Error: ${event.error}.`);
+        // --- State Management and UI Updates ---
+
+        function updateUI(status, error = null) {
+            AppState.ui.statusMessage.textContent = error ? `ERROR: ${error}` : status;
+
+            const isActive = status !== AppState.STATUS_IDLE || error;
+            const isListening = status === AppState.STATUS_STT;
+            const isSpeakingOrThinking = status === AppState.STATUS_SPEAKING || status === AppState.STATUS_THINKING;
+            
+            // Toggle Main Bubble Active State (Pulse)
+            AppState.ui.aiBubble.classList.toggle('active', isActive && !error);
+            AppState.ui.aiBubble.setAttribute('aria-pressed', String(isActive));
+            
+            // Toggle Waves (Listening Visualizer)
+            AppState.ui.waves.classList.toggle('visible', isListening);
+            
+            // Toggle Stop Button
+            AppState.ui.stopBtn.classList.toggle('hidden', !isActive);
+            AppState.ui.stopBtn.setAttribute('aria-hidden', String(!isActive));
+
+            // Show/Hide Response Box
+            AppState.ui.responseBox.classList.toggle('visible', isSpeakingOrThinking);
+
+            // Change bubble background based on state
+            if (error) {
+                AppState.ui.aiBubble.style.backgroundColor = '#ef4444'; // Red for error
+            } else if (isSpeakingOrThinking) {
+                 // Use accent teal for thinking/speaking
+                AppState.ui.aiBubble.style.backgroundColor = 'var(--color-accent-teal)';
             } else {
-                updateUI(AppState.STATUS_IDLE, 'No clear speech detected. Try again.');
+                // Use accent blue for idle/listening
+                AppState.ui.aiBubble.style.backgroundColor = 'var(--color-accent-blue)';
             }
-        };
 
-        AppState.recognition.onend = () => {
-            AppState.isListening = false;
-            // Only reset UI if a result hasn't already triggered the THINKING state
-            if (AppState.ui.statusMessage.textContent === AppState.STATUS_STT) {
-                 updateUI(AppState.STATUS_IDLE, 'Listening ended.');
-            }
-        };
-
-        AppState.recognition.start();
-    }
-
-    function stopListening() {
-        if (AppState.isListening && AppState.recognition) {
-            AppState.recognition.stop();
+            // Play tones for feedback
+            if (status === AppState.STATUS_STT && !AppState.isListening) playClickTone();
+            if (status === AppState.STATUS_IDLE && !AppState.isListening && !AppState.isSpeaking) playEndTone();
         }
-    }
 
-    // --- Text-to-Speech (TTS) Logic (Browser Native) ---
-    function speak(text) {
-        if (AppState.isSpeaking) {
-            stopSpeaking();
+        // --- Core Assistant Logic: Start STT (Web Speech API) ---
+
+        function startListening() {
+            if (AppState.isListening || AppState.isSpeaking) return;
+
+            // FIX: Check for Web Speech API support
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                updateUI(AppState.STATUS_IDLE, 'Speech Recognition is not supported (Try Chrome or Edge).');
+                return;
+            }
+
+            // Create and configure the SpeechRecognition instance
+            AppState.recognition = new SpeechRecognition();
+            AppState.recognition.continuous = false; // Stop after a single phrase
+            AppState.recognition.interimResults = false;
+            AppState.recognition.lang = 'en-US'; 
+
+            AppState.recognition.onstart = () => {
+                AppState.isListening = true;
+                updateUI(AppState.STATUS_STT);
+            };
+
+            AppState.recognition.onresult = (event) => {
+                // Get the final transcript
+                const last = event.results.length - 1;
+                const transcript = event.results[last][0].transcript;
+                console.log("Transcript:", transcript);
+                
+                // Send the text to the backend
+                sendTextToBackend(transcript);
+            };
+
+            AppState.recognition.onerror = (event) => {
+                console.error('STT Error:', event.error);
+                // Only show a serious error, otherwise let onend handle it.
+                if (event.error !== 'no-speech' && event.error !== 'aborted') {
+                    updateUI(AppState.STATUS_IDLE, `STT Error: ${event.error}.`);
+                } else if (event.error === 'no-speech') {
+                    updateUI(AppState.STATUS_IDLE, 'No clear speech detected. Tap to try again.');
+                }
+            };
+
+            AppState.recognition.onend = () => {
+                AppState.isListening = false;
+                // If the UI is still in the STT state, reset it.
+                if (AppState.ui.statusMessage.textContent === AppState.STATUS_STT) {
+                     updateUI(AppState.STATUS_IDLE, 'Listening ended (No result).');
+                }
+            };
+
+            AppState.recognition.start();
+        }
+
+        function stopListening() {
+            if (AppState.isListening && AppState.recognition) {
+                AppState.recognition.stop();
+                // When manually stopped, update UI immediately
+                updateUI(AppState.STATUS_IDLE); 
+            }
         }
         
-        const utterance = new SpeechSynthesisUtterance(text);
-        
-        // Find a natural-sounding voice
-        const voices = AppState.speechSynthesis.getVoices();
-        const selectedVoice = voices.find(v => v.name.includes(ASSISTANT_VOICE) || v.default);
-        if (selectedVoice) {
-            utterance.voice = selectedVoice;
-        }
+        // --- TTS (Text-to-Speech) Logic (Browser Native) ---
 
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
-
-        utterance.onstart = () => {
+        function speakResponse(text) {
+            if (!AppState.speechSynth) {
+                AppState.ui.responseContent.textContent = "Error: Browser does not support Speech Synthesis.";
+                updateUI(AppState.STATUS_IDLE);
+                return;
+            }
+            
             AppState.isSpeaking = true;
             updateUI(AppState.STATUS_SPEAKING);
-        };
-
-        utterance.onend = () => {
-            AppState.isSpeaking = false;
-            updateUI(AppState.STATUS_IDLE);
-        };
-
-        utterance.onerror = (event) => {
-            console.error('TTS Error:', event);
-            AppState.isSpeaking = false;
-            updateUI(AppState.STATUS_IDLE, 'Error playing back AI voice.');
-        };
-
-        AppState.speechSynthesis.speak(utterance);
-    }
-    
-    function stopSpeaking() {
-        if (AppState.isSpeaking) {
-            AppState.speechSynthesis.cancel();
-            AppState.isSpeaking = false;
-            updateUI(AppState.STATUS_IDLE);
-        }
-    }
-
-    // --- Backend Communication (Text Only) ---
-    async function sendTextToBackend(query) {
-        updateUI(AppState.STATUS_THINKING);
-
-        try {
-            const response = await fetch(`${BACKEND_URL}/api/process-text`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json' 
-                },
-                body: JSON.stringify({ query: query })
-            });
-
-            if (!response.ok) {
-                const errorJson = await response.json().catch(() => ({ error: 'Unknown server error.' }));
-                throw new Error(errorJson.error || `Server responded with status ${response.status}.`);
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Find a natural-sounding voice
+            const voices = AppState.speechSynth.getVoices();
+            const selectedVoice = voices.find(v => v.name.includes(ASSISTANT_VOICE) || v.default);
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
             }
             
-            const data = await response.json();
-            const responseText = data.text || "I apologize, I could not generate a response.";
-            
-            // 1. Update the UI with the text
-            AppState.ui.responseContent.textContent = responseText;
+            utterance.pitch = 1.0;
+            utterance.rate = 1.0;
 
-            // 2. Start the native browser TTS
-            speak(responseText);
-
-        } catch (error) {
-            console.error("Backend Error:", error);
-            updateUI(AppState.STATUS_IDLE, `Backend Error: ${error.message}. Check your server console for details.`);
-        }
-    }
-
-    // --- Event Handlers and Initialization ---
-
-    function handleMainClick() {
-        if (AppState.isSpeaking) {
-            stopSpeaking(); 
-        } else if (AppState.isListening) {
-            stopListening(); 
-        } else {
-            startListening(); 
-        }
-    }
-
-    function initialize() {
-        // Main Button Click
-        AppState.ui.aiBubble.addEventListener('click', handleMainClick);
-
-        // Stop Button Click
-        AppState.ui.stopBtn.addEventListener('click', () => {
-            if (AppState.isSpeaking) {
-                stopSpeaking();
-            } else if (AppState.isListening) {
-                // Clicking stop while listening should halt STT without triggering the backend call
-                stopListening(); 
-                updateUI(AppState.STATUS_IDLE, 'Recording interrupted.');
-            }
-        });
-
-        // Ensure voices are loaded (critical for TTS)
-        if (AppState.speechSynthesis.onvoiceschanged !== undefined) {
-            AppState.speechSynthesis.onvoiceschanged = () => {
-                console.log("SpeechSynthesis voices loaded.");
+            utterance.onend = () => {
+                AppState.isSpeaking = false;
+                updateUI(AppState.STATUS_IDLE);
+                console.log("AI finished speaking.");
             };
+            
+            utterance.onerror = (event) => {
+                AppState.isSpeaking = false;
+                updateUI(AppState.STATUS_IDLE, 'Error playing back AI voice.');
+                console.error('SpeechSynthesisUtterance.onerror', event);
+            };
+
+            AppState.speechSynth.speak(utterance);
+        }
+        
+        function stopSpeaking() {
+             if (AppState.isSpeaking) {
+                AppState.speechSynth.cancel();
+                AppState.isSpeaking = false;
+                updateUI(AppState.STATUS_IDLE);
+                console.log("Speaking manually stopped.");
+            }
         }
 
-        updateUI(AppState.STATUS_IDLE);
-    }
-    
-    // --- Web Audio Tones (Kept from your original HTML) ---
-    function playClickTone(){
-        try{
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const o = ctx.createOscillator();
-            const g = ctx.createGain();
-            o.type = 'sine';
-            o.frequency.setValueAtTime(440, ctx.currentTime);
-            g.gain.setValueAtTime(0.0001, ctx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + 0.01);
-            o.connect(g); g.connect(ctx.destination);
-            o.start();
-            g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
-            o.stop(ctx.currentTime + 0.26);
-        }catch(e){ console.error("WebAudio error:", e); }
-    }
+        // --- Backend Communication (Text Only) ---
+        async function sendTextToBackend(query) {
+            updateUI(AppState.STATUS_THINKING);
 
-    function playEndTone(){
-        try{
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const o = ctx.createOscillator();
-            const g = ctx.createGain();
-            o.type = 'triangle';
-            o.frequency.setValueAtTime(240, ctx.currentTime);
-            g.gain.setValueAtTime(0.0001, ctx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 0.01);
-            o.connect(g); g.connect(ctx.destination);
-            o.start();
-            g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.28);
-            o.stop(ctx.currentTime + 0.29);
-        }catch(e){ console.error("WebAudio error:", e); }
-    }
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/process-text`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+
+                if (!response.ok) {
+                    const errorJson = await response.json().catch(() => ({ error: 'Unknown server error.' }));
+                    throw new Error(errorJson.error || `Server responded with status ${response.status}.`);
+                }
+                
+                const data = await response.json();
+                const responseText = data.text || "I apologize, I could not generate a response.";
+                
+                // 1. Update the UI with the text
+                AppState.ui.responseContent.textContent = responseText;
+
+                // 2. Start the native browser TTS
+                speakResponse(responseText);
+
+            } catch (error) {
+                console.error("Backend Error:", error);
+                // This is where the original 'fetch is not a function' error was caught
+                updateUI(AppState.STATUS_IDLE, `Backend Error: ${error.message}. Check your server console.`);
+            }
+        }
+        
+        // --- Event Listeners and Initialization ---
+
+        function handleMainClick() {
+            if (AppState.isSpeaking) {
+                stopSpeaking(); // Interrupt if speaking
+            } else if (AppState.isListening) {
+                stopListening(); // Stop STT
+            } else {
+                startListening(); // Start STT
+            }
+        }
+
+        function initialize() {
+            // Main Button Click
+            AppState.ui.aiBubble.addEventListener('click', handleMainClick);
+
+            // Stop Button Click
+            AppState.ui.stopBtn.addEventListener('click', () => {
+                if (AppState.isSpeaking) {
+                    stopSpeaking();
+                } else if (AppState.isListening) {
+                    stopListening();
+                }
+            });
+            
+            // Ensure voices are loaded (critical for TTS)
+            if (AppState.speechSynth.onvoiceschanged !== undefined) {
+                AppState.speechSynth.onvoiceschanged = () => {
+                    console.log("SpeechSynthesis voices loaded.");
+                };
+            }
 
 
-    // Start the application after the window loads
-    window.onload = initialize;
-</script>   
+            updateUI(AppState.STATUS_IDLE);
+        }
+
+        // --- Web Audio Tones for Feedback (Kept from your original HTML) ---
+
+        function playClickTone(){
+            try{
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.type = 'sine';
+                o.frequency.setValueAtTime(440, ctx.currentTime);
+                g.gain.setValueAtTime(0.0001, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + 0.01);
+                o.connect(g); g.connect(ctx.destination);
+                o.start();
+                g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+                o.stop(ctx.currentTime + 0.26);
+            }catch(e){ console.error("WebAudio error:", e); }
+        }
+
+        function playEndTone(){
+            try{
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.type = 'triangle';
+                o.frequency.setValueAtTime(240, ctx.currentTime);
+                g.gain.setValueAtTime(0.0001, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 0.01);
+                o.connect(g); g.connect(ctx.destination);
+                o.start();
+                g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.28);
+                o.stop(ctx.currentTime + 0.29);
+            }catch(e){ console.error("WebAudio error:", e); }
+        }
+
+        // Start the application after the window loads
+        window.onload = initialize;
+    </script>
 </body>
 </html>

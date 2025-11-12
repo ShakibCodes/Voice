@@ -3,6 +3,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
+// FIX: Explicitly require node-fetch for older Node versions
 const fetch = require('node-fetch'); 
 
 // Load environment variables from .env file
@@ -10,8 +11,10 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL;
+// Note: Using the key/model provided in your previous turn
+const OPENROUTER_KEY = "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";
+const OPENROUTER_MODEL = "meta-llama/llama-4-scout:free";
+
 
 // =========================================================
 // 1. MIDDLEWARE
@@ -28,7 +31,7 @@ app.use((req, res, next) => {
 });
 
 if (!OPENROUTER_KEY || !OPENROUTER_MODEL) {
-    console.error("FATAL: OPENROUTER_API_KEY or OPENROUTER_MODEL is missing in .env file.");
+    console.error("FATAL: OPENROUTER_API_KEY or OPENROUTER_MODEL is missing. Check .env or hardcoded values.");
     process.exit(1);
 }
 
@@ -36,7 +39,7 @@ if (!OPENROUTER_KEY || !OPENROUTER_MODEL) {
 // 2. API ENDPOINT (Text-to-Text)
 // =========================================================
 
-// This endpoint expects a JSON body with the 'query' key.
+// This endpoint expects a JSON body with the 'query' key from the frontend.
 app.post('/api/process-text', async (req, res) => {
     try {
         const userQuery = req.body.query;
@@ -47,15 +50,14 @@ app.post('/api/process-text', async (req, res) => {
 
         console.log(`Received query: "${userQuery}"`);
 
-        // --- OpenRouter API Call ---
+        // --- OpenRouter API Call using 'fetch' (now imported) ---
         const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
             headers: {
-                // IMPORTANT: Use the provided API Key
                 'Authorization': `Bearer ${OPENROUTER_KEY}`, 
                 'Content-Type': 'application/json',
-                // OpenRouter requires the HTTP-Referer or X-Title for tracking free usage
-                'HTTP-Referer': 'Voice Assistant Project (meta-llama/llama-4-scout:free)', 
+                // OpenRouter requires a referer for tracking free usage
+                'HTTP-Referer': 'Voice Assistant Project', 
             },
             body: JSON.stringify({
                 model: OPENROUTER_MODEL,
@@ -63,7 +65,6 @@ app.post('/api/process-text', async (req, res) => {
                     { role: 'system', content: 'You are a concise, helpful, and natural-sounding voice assistant. Keep your answers brief and conversational, as they will be spoken aloud.' },
                     { role: 'user', content: userQuery }
                 ],
-                // Ensure a quick, concise response
                 max_tokens: 150, 
             }),
         });
@@ -72,7 +73,6 @@ app.post('/api/process-text', async (req, res) => {
 
         if (!openRouterResponse.ok) {
             console.error('OpenRouter Error Data:', data);
-            // Handle specific OpenRouter errors like rate limits or invalid model
             const errorMessage = data.error?.message || "Failed to get response from OpenRouter.";
             return res.status(data.status || 500).json({ error: errorMessage });
         }
