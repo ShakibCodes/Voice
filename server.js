@@ -13,8 +13,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Keys and Model (Hardcoded based on user's .env for reliability)
-const OPENROUTER_KEY = "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";
-const OPENROUTER_MODEL = "meta-llama/llama-4-scout:free";
+const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL;
 
 
 // =========================================================

@@ -336,8 +336,8 @@
     </section>
 
     <script>
-        // --- Configuration ---
-        const BACKEND_URL = 'http://localhost:3000'; 
+        // --- Configuration ---   
+        const BACKEND_URL = ''; 
         const ASSISTANT_VOICE = 'Google UK English Male'; 
         const TYPING_SPEED = 20; // Milliseconds per character for typing effect
 
@@ -360,8 +360,9 @@
             // State tracking
             isListening: false, 
             isSpeaking: false,
-            isTyping: false, // New state for typing animation
+            isTyping: false, // State for typing animation
             recognition: null, 
+            typingIntervalId: null, // NEW: To store the typing interval for interruption
             
             // Audio/Speech APIs
             speechSynth: window.speechSynthesis,
@@ -374,7 +375,7 @@
 
             const isActive = status !== AppState.STATUS_IDLE || error;
             const isListening = status === AppState.STATUS_STT;
-            const isSpeakingOrThinking = status === AppState.STATUS_SPEAKING || status === AppState.STATUS_THINKING;
+            const isSpeakingOrThinking = status === AppState.STATUS_SPEAKING || status === AppState.STATUS_THINKING || AppState.isTyping;
             
             // Toggle Main Bubble Active State (Pulse)
             AppState.ui.aiBubble.classList.toggle('active', isActive && !error);
@@ -383,11 +384,11 @@
             // Toggle Waves (Listening Visualizer)
             AppState.ui.waves.classList.toggle('visible', isListening);
             
-            // Toggle Stop Button
+            // Toggle Stop Button (Show if we are busy in any way)
             AppState.ui.stopBtn.classList.toggle('hidden', !isActive);
             AppState.ui.stopBtn.setAttribute('aria-hidden', String(!isActive));
 
-            // Show/Hide Response Box (Keep visible if speaking, typing, or thinking)
+            // Show/Hide Response Box
             AppState.ui.responseBox.classList.toggle('visible', isSpeakingOrThinking || AppState.isTyping);
             
             // Toggle Typing Cursor (Only show when thinking/typing)
@@ -408,13 +409,14 @@
 
             // Play tones for feedback
             if (status === AppState.STATUS_STT && !AppState.isListening) playClickTone();
-            if (status === AppState.STATUS_IDLE && !AppState.isListening && !AppState.isSpeaking) playEndTone();
+            // Only play end tone if completely idle
+            if (status === AppState.STATUS_IDLE && !AppState.isListening && !AppState.isSpeaking && !AppState.isTyping) playEndTone();
         }
 
         // --- Core Assistant Logic: Start STT (Web Speech API) ---
 
         function startListening() {
-            if (AppState.isListening || AppState.isSpeaking) return;
+            if (AppState.isListening || AppState.isSpeaking || AppState.isTyping) return;
 
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
@@ -455,6 +457,7 @@
 
             AppState.recognition.onend = () => {
                 AppState.isListening = false;
+                // Only go to IDLE if thinking/speaking/typing hasn't started yet
                 if (AppState.ui.statusMessage.textContent === AppState.STATUS_STT) {
                      updateUI(AppState.STATUS_IDLE, 'Listening ended (No result).');
                 }
@@ -475,7 +478,7 @@
         function speakResponse(text) {
             if (!AppState.speechSynth) {
                 AppState.ui.responseContent.textContent = "Error: Browser does not support Speech Synthesis.";
-                updateUI(AppState.STATUS_IDLE);
+                // We don't call updateUI here, as typing will handle the IDLE transition if speech fails
                 return;
             }
             
@@ -484,6 +487,7 @@
             
             const utterance = new SpeechSynthesisUtterance(text);
             
+            // Voice selection logic... (kept same)
             const voices = AppState.speechSynth.getVoices();
             const selectedVoice = voices.find(v => v.name.includes(ASSISTANT_VOICE) || v.default);
             if (selectedVoice) {
@@ -495,7 +499,7 @@
 
             utterance.onend = () => {
                 AppState.isSpeaking = false;
-                // Only go to idle if we aren't also typing
+                // Transition to IDLE only if typing is also finished
                 if (!AppState.isTyping) { 
                     updateUI(AppState.STATUS_IDLE);
                 }
@@ -504,7 +508,10 @@
             
             utterance.onerror = (event) => {
                 AppState.isSpeaking = false;
-                updateUI(AppState.STATUS_IDLE, 'Error playing back AI voice.');
+                // Transition to IDLE only if typing is also finished
+                if (!AppState.isTyping) {
+                   updateUI(AppState.STATUS_IDLE, 'Error playing back AI voice.');
+                }
                 console.error('SpeechSynthesisUtterance.onerror', event);
             };
 
@@ -515,42 +522,44 @@
              if (AppState.isSpeaking) {
                 AppState.speechSynth.cancel();
                 AppState.isSpeaking = false;
-                updateUI(AppState.STATUS_IDLE);
+                // Since speaking is interrupted, we must manually check and update the IDLE state
+                if (!AppState.isTyping) {
+                   updateUI(AppState.STATUS_IDLE);
+                }
                 console.log("Speaking manually stopped.");
             }
         }
         
-        // --- NEW: Typing Animation Logic ---
+        // --- Typing Animation Logic ---
         function typeResponseText(fullText) {
+            if(AppState.typingIntervalId) clearInterval(AppState.typingIntervalId); // Clear any existing
+            
             AppState.isTyping = true;
             AppState.ui.responseContent.textContent = ''; // Clear content for typing
             AppState.ui.responseBox.classList.add('visible'); // Ensure box is visible
             
-            // Set status to thinking so the UI changes to the teal color and cursor shows
-            updateUI(AppState.STATUS_THINKING); 
+            // Set status to speaking/thinking so the UI changes to the teal color and cursor shows
+            updateUI(AppState.STATUS_SPEAKING); 
 
             let charIndex = 0;
             
-            const typingInterval = setInterval(() => {
+            // Store the interval ID
+            AppState.typingIntervalId = setInterval(() => {
                 if (charIndex < fullText.length) {
                     AppState.ui.responseContent.textContent += fullText.charAt(charIndex);
                     charIndex++;
                 } else {
-                    clearInterval(typingInterval);
+                    clearInterval(AppState.typingIntervalId);
                     AppState.isTyping = false;
                     
-                    // Once typing is done, start speaking the text
-                    speakResponse(fullText);
-                    
-                    // If speaking fails or is stopped, the speaking function will handle the transition to IDLE
+                    // Once typing is done, transition to IDLE only if speaking is also finished
+                    if (!AppState.isSpeaking) {
+                       updateUI(AppState.STATUS_IDLE);
+                    }
                 }
             }, TYPING_SPEED);
-            
-            // Return the interval ID so it can be cleared if needed (e.g., in a future 'stop' feature)
-            return typingInterval;
         }
-
-
+        
         // --- Backend Communication (Text Only) ---
         async function sendTextToBackend(query) {
             updateUI(AppState.STATUS_THINKING);
@@ -572,10 +581,13 @@
                 const data = await response.json();
                 const responseText = data.text || "I apologize, I could not generate a response.";
                 
-                // 1. Start the Typing Animation instead of immediately setting textContent
+                // --- THE FIX: Start TTS and Typing in Parallel ---
+                
+                // 1. Start speaking immediately
+                speakResponse(responseText);
+                
+                // 2. Start the Typing Animation immediately
                 typeResponseText(responseText); 
-
-                // 2. TTS is now called automatically by typeResponseText() after the typing is finished
 
             } catch (error) {
                 console.error("Backend Error:", error);
@@ -586,7 +598,7 @@
         // --- Event Listeners and Initialization ---
 
         function handleMainClick() {
-            if (AppState.isSpeaking) {
+            if (AppState.isSpeaking || AppState.isTyping) {
                 stopSpeaking(); 
             } else if (AppState.isListening) {
                 stopListening(); 
@@ -601,11 +613,20 @@
 
             // Stop Button Click
             AppState.ui.stopBtn.addEventListener('click', () => {
-                // Add logic to interrupt typing if it were to be implemented later
-                if (AppState.isSpeaking) {
-                    stopSpeaking();
-                } else if (AppState.isListening) {
+                // Stop speech and typing animation/interval
+                stopSpeaking();
+                if (AppState.typingIntervalId) {
+                    clearInterval(AppState.typingIntervalId);
+                    AppState.isTyping = false;
+                    // Immediately show the full text when manually stopping
+                    AppState.ui.responseContent.textContent = AppState.ui.responseContent.textContent; 
+                }
+                if (AppState.isListening) {
                     stopListening();
+                }
+                // Update UI to IDLE (handled by stopSpeaking/stopListening if they were active)
+                if (!AppState.isListening && !AppState.isSpeaking && !AppState.isTyping) {
+                    updateUI(AppState.STATUS_IDLE);
                 }
             });
             
@@ -620,7 +641,7 @@
             updateUI(AppState.STATUS_IDLE);
         }
 
-        // --- Web Audio Tones for Feedback ---
+        // --- Web Audio Tones for Feedback (Kept the same) ---
 
         function playClickTone(){
             try{
