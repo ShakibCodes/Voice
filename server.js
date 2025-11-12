@@ -1,37 +1,37 @@
-// server.js - Node.js Backend for OpenRouter Voice Assistant (v3 - using Axios)
+// server.js - Node.js Backend for OpenRouter Voice Assistant
 
 const express = require('express');
 const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
-// FIX: Using Axios as a reliable HTTP client alternative to node-fetch
-const axios = require('axios'); 
+const axios = require('axios');
+const cors = require('cors'); // FIX: Added the official CORS package
 
 // Load environment variables from .env file
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-// Note: Using the key/model provided by the user
-const OPENROUTER_KEY = "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";
+
+// Keys and Model (Hardcoded based on user's .env for reliability)
+const OPENROUTER_KEY = "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";
 const OPENROUTER_MODEL = "meta-llama/llama-4-scout:free";
 
 
 // =========================================================
-// 1. MIDDLEWARE
+// 1. MIDDLEWARE (The Fix for CORS and silent crash)
 // =========================================================
 
+// FIX: Use the cors package to allow requests from the frontend (like 127.0.0.1:5500)
+app.use(cors());
+
+// Configure to parse JSON requests
 app.use(bodyParser.json());
 
-// Enable CORS for frontend running locally
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*'); 
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-    next();
-});
-
+// Check for critical configuration
 if (!OPENROUTER_KEY || !OPENROUTER_MODEL) {
     console.error("FATAL: OPENROUTER_API_KEY or OPENROUTER_MODEL is missing.");
-    process.exit(1);
+    // If the server crashes here, the error message is clear.
+    process.exit(1); 
 }
 
 // =========================================================
@@ -76,12 +76,12 @@ app.post('/api/process-text', async (req, res) => {
         });
 
     } catch (error) {
-        // Axios error handling is slightly different
+        // Robust error handling for Axios network or API errors
         if (error.response) {
-            // API responded with an error (e.g., 401, 429)
             console.error('OpenRouter API Error Status:', error.response.status);
             console.error('OpenRouter API Error Data:', error.response.data);
             const errorMessage = error.response.data.error?.message || "Failed to get response from OpenRouter.";
+            // Pass the API error status back to the client
             return res.status(error.response.status || 500).json({ error: errorMessage });
         } else {
             // General network or setup error
