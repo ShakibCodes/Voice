@@ -4,7 +4,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
 const axios = require('axios');
-const cors = require('cors'); // FIX: Added the official CORS package
+const cors = require('cors'); 
+const path = require('path'); // <<< CRITICAL NEW ADDITION: For serving static files
 
 // Load environment variables from .env file
 dotenv.config();
@@ -12,40 +13,37 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Keys and Model (Hardcoded based on user's .env for reliability)
+// Keys and Model (Loaded from environment variables for deployment)
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL;
 
 
 // =========================================================
-// 1. MIDDLEWARE (The Fix for CORS and silent crash)
+// 1. MIDDLEWARE
 // =========================================================
 
-// FIX: Use the cors package to allow requests from the frontend (like 127.0.0.1:5500)
 app.use(cors());
-
-// Configure to parse JSON requests
 app.use(bodyParser.json());
 
 // Check for critical configuration
 if (!OPENROUTER_KEY || !OPENROUTER_MODEL) {
     console.error("FATAL: OPENROUTER_API_KEY or OPENROUTER_MODEL is missing.");
-    // If the server crashes here, the error message is clear.
     process.exit(1); 
 }
 
 // =========================================================
-// 2. API ENDPOINT (Text-to-Text)
+// 2. ROOT ROUTE FIX (Serves index.html)
 // =========================================================
 
-// FIX: Add a basic GET route for the root path to prevent "Cannot GET /" errors on deployment platforms like Vercel.
 app.get('/', (req, res) => {
-    res.status(200).json({ 
-        status: 'ok', 
-        message: 'Voice Assistant Backend is running.',
-        model: OPENROUTER_MODEL 
-    });
+    // This uses the 'path' module to find and send the index.html file 
+    // from the same directory as server.js.
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
+
+// =========================================================
+// 3. API ENDPOINT (Text-to-Text)
+// =========================================================
 
 app.post('/api/process-text', async (req, res) => {
     try {
