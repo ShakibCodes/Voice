@@ -338,7 +338,7 @@
     <script>
         // --- Configuration ---   
         const BACKEND_URL = ''; 
-        const ASSISTANT_VOICE = 'Google UK English Male'; 
+        // ASSISTANT_VOICE is no longer used as TTS is done on the server
         const TYPING_SPEED = 20; // Milliseconds per character for typing effect
 
         // Use an object to manage all state variables and UI elements
@@ -362,10 +362,8 @@
             isSpeaking: false,
             isTyping: false, // State for typing animation
             recognition: null, 
-            typingIntervalId: null, // NEW: To store the typing interval for interruption
-            
-            // Audio/Speech APIs
-            speechSynth: window.speechSynthesis,
+            typingIntervalId: null, // To store the typing interval for interruption
+            currentAudio: null, // NEW: To hold the currently playing Audio object for the stream
         };
 
         // --- State Management and UI Updates ---
@@ -375,7 +373,8 @@
 
             const isActive = status !== AppState.STATUS_IDLE || error;
             const isListening = status === AppState.STATUS_STT;
-            const isSpeakingOrThinking = status === AppState.STATUS_SPEAKING || status === AppState.STATUS_THINKING || AppState.isTyping;
+            // isSpeaking is now controlled by the new audio object state
+            const isSpeakingOrThinking = AppState.isSpeaking || status === AppState.STATUS_THINKING || AppState.isTyping; 
             
             // Toggle Main Bubble Active State (Pulse)
             AppState.ui.aiBubble.classList.toggle('active', isActive && !error);
@@ -443,7 +442,7 @@
                 const transcript = event.results[last][0].transcript;
                 console.log("Transcript:", transcript);
                 
-                sendTextToBackend(transcript);
+                handleChat(transcript); 
             };
 
             AppState.recognition.onerror = (event) => {
@@ -469,60 +468,65 @@
         function stopListening() {
             if (AppState.isListening && AppState.recognition) {
                 AppState.recognition.stop();
-                updateUI(AppState.STATUS_IDLE); 
             }
         }
         
-        // --- TTS (Text-to-Speech) Logic (Browser Native) ---
-
-        function speakResponse(text) {
-            if (!AppState.speechSynth) {
-                AppState.ui.responseContent.textContent = "Error: Browser does not support Speech Synthesis.";
-                // We don't call updateUI here, as typing will handle the IDLE transition if speech fails
-                return;
-            }
-            
-            AppState.isSpeaking = true;
-            updateUI(AppState.STATUS_SPEAKING);
-            
-            const utterance = new SpeechSynthesisUtterance(text);
-            
-            // Voice selection logic... (kept same)
-            const voices = AppState.speechSynth.getVoices();
-            const selectedVoice = voices.find(v => v.name.includes(ASSISTANT_VOICE) || v.default);
-            if (selectedVoice) {
-                utterance.voice = selectedVoice;
-            }
-            
-            utterance.pitch = 1.0;
-            utterance.rate = 1.0;
-
-            utterance.onend = () => {
-                AppState.isSpeaking = false;
-                // Transition to IDLE only if typing is also finished
-                if (!AppState.isTyping) { 
-                    updateUI(AppState.STATUS_IDLE);
-                }
-                console.log("AI finished speaking.");
-            };
-            
-            utterance.onerror = (event) => {
-                AppState.isSpeaking = false;
-                // Transition to IDLE only if typing is also finished
-                if (!AppState.isTyping) {
-                   updateUI(AppState.STATUS_IDLE, 'Error playing back AI voice.');
-                }
-                console.error('SpeechSynthesisUtterance.onerror', event);
-            };
-
-            AppState.speechSynth.speak(utterance);
-        }
+        // --- NEW TTS (ElevenLabs Streaming) Logic ---
         
+        // Function to play the streamed MP3 audio
+        function playAudioStream(url) {
+            return new Promise((resolve, reject) => {
+                // Ensure any previous audio is stopped
+                stopSpeaking(); 
+                
+                AppState.currentAudio = new Audio(url);
+                
+                AppState.currentAudio.onplay = () => {
+                    AppState.isSpeaking = true;
+                    updateUI(AppState.STATUS_SPEAKING);
+                };
+
+                AppState.currentAudio.onerror = (e) => {
+                    console.error('Audio playback error:', e);
+                    AppState.isSpeaking = false;
+                    AppState.currentAudio = null;
+                    // Check if the source is the 405 error page.
+                    if (AppState.ui.statusMessage.textContent.includes('405')) {
+                       reject(new Error('Server communication failed (405). Check server console.'));
+                    } else {
+                       reject(new Error('Failed to play audio stream.'));
+                    }
+                };
+                
+                // Resolve the promise when the audio finishes playing
+                AppState.currentAudio.onended = () => {
+                    console.log("Audio playback finished.");
+                    AppState.isSpeaking = false;
+                    AppState.currentAudio = null;
+                    if (!AppState.isTyping) {
+                        updateUI(AppState.STATUS_IDLE); // Go back to idle when audio AND typing are done
+                    }
+                    resolve();
+                };
+                
+                // Start loading and playing the stream immediately
+                AppState.currentAudio.load();
+                AppState.currentAudio.play().catch(e => {
+                    // Catch promise rejection if user hasn't interacted with the page yet
+                    console.error('Audio play() failed (often due to browser autoplay policy):', e);
+                });
+            });
+        }
+
+
         function stopSpeaking() {
-             if (AppState.isSpeaking) {
-                AppState.speechSynth.cancel();
+            if (AppState.currentAudio) {
+                AppState.currentAudio.pause();
+                AppState.currentAudio.currentTime = 0;
+                AppState.currentAudio = null;
                 AppState.isSpeaking = false;
-                // Since speaking is interrupted, we must manually check and update the IDLE state
+                
+                // Transition to IDLE only if typing is also finished
                 if (!AppState.isTyping) {
                    updateUI(AppState.STATUS_IDLE);
                 }
@@ -530,9 +534,10 @@
             }
         }
         
-        // --- Typing Animation Logic ---
+        // --- Typing Animation Logic (Updated to be interruptible) ---
         function typeResponseText(fullText) {
-            if(AppState.typingIntervalId) clearInterval(AppState.typingIntervalId); // Clear any existing
+            // Stop any existing typing process
+            if(AppState.typingIntervalId) clearInterval(AppState.typingIntervalId); 
             
             AppState.isTyping = true;
             AppState.ui.responseContent.textContent = ''; // Clear content for typing
@@ -549,6 +554,7 @@
                     AppState.ui.responseContent.textContent += fullText.charAt(charIndex);
                     charIndex++;
                 } else {
+                    // Typing finished
                     clearInterval(AppState.typingIntervalId);
                     AppState.isTyping = false;
                     
@@ -560,45 +566,82 @@
             }, TYPING_SPEED);
         }
         
-        // --- Backend Communication (Text Only) ---
-        async function sendTextToBackend(query) {
+        // --- Combined Backend Communication (Fixes 405 Error) ---
+        async function handleChat(query) {
+            
+            // 1. Prepare UI for thinking state
             updateUI(AppState.STATUS_THINKING);
+            
+            // Clear any old typing interval just in case
+            if (AppState.typingIntervalId) {
+                clearInterval(AppState.typingIntervalId);
+                AppState.isTyping = false;
+            }
 
             try {
-                const response = await fetch(`${BACKEND_URL}/api/process-text`, {
+                // *** CRITICAL FIX: The endpoint must be /api/chat ***
+                const response = await fetch(`${BACKEND_URL}/api/chat`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json' 
                     },
-                    body: JSON.stringify({ query: query })
+                    body: JSON.stringify({ query: query }) 
                 });
 
                 if (!response.ok) {
-                    const errorJson = await response.json().catch(() => ({ error: 'Unknown server error.' }));
-                    throw new Error(errorJson.error || `Server responded with status ${response.status}.`);
+                    // If the server returns a non-OK status, it's not an audio stream
+                    let errorDetails = `Server responded with status ${response.status}.`;
+                    try {
+                        const errorJson = await response.json();
+                        errorDetails = errorJson.error || errorDetails;
+                    } catch (e) {
+                        // If it fails to parse JSON, use the default message
+                    }
+                    throw new Error(errorDetails);
                 }
                 
-                const data = await response.json();
-                const responseText = data.text || "I apologize, I could not generate a response.";
+                // --- STEP 1: Get Text and Start Typing Animation ---
                 
-                // --- THE FIX: Start TTS and Typing in Parallel ---
+                // Text is received via a custom header
+                const encodedText = response.headers.get('X-AI-Response-Text');
+                if (!encodedText) {
+                    // This error indicates the server did not set the header correctly 
+                    throw new Error("Missing AI response text header from server. Check server.js logic.");
+                }
+                const responseText = decodeURIComponent(encodedText);
                 
-                // 1. Start speaking immediately
-                speakResponse(responseText);
-                
-                // 2. Start the Typing Animation immediately
+                // Start the Typing Animation
                 typeResponseText(responseText); 
+                
+                // --- STEP 2: Play the Audio Stream ---
+                
+                // The server is streaming MP3 audio, so we use the response URL as the audio source
+                const audioUrl = response.url;
+                
+                // Wait for the audio to finish playing
+                await playAudioStream(audioUrl); 
 
             } catch (error) {
-                console.error("Backend Error:", error);
-                updateUI(AppState.STATUS_IDLE, `Backend Error: ${error.message}. Check your server console.`);
+                console.error("Chat Error:", error);
+                
+                // If an error occurred, stop any ongoing typing and speaking
+                if (AppState.typingIntervalId) clearInterval(AppState.typingIntervalId);
+                stopSpeaking(); 
+                
+                updateUI(AppState.STATUS_IDLE, `Chat Error: ${error.message}.`);
             }
         }
         
         // --- Event Listeners and Initialization ---
 
         function handleMainClick() {
+            // If typing or speaking, stop everything
             if (AppState.isSpeaking || AppState.isTyping) {
+                // Stop typing interval
+                if (AppState.typingIntervalId) {
+                    clearInterval(AppState.typingIntervalId);
+                    AppState.isTyping = false;
+                }
                 stopSpeaking(); 
             } else if (AppState.isListening) {
                 stopListening(); 
@@ -613,36 +656,34 @@
 
             // Stop Button Click
             AppState.ui.stopBtn.addEventListener('click', () => {
-                // Stop speech and typing animation/interval
-                stopSpeaking();
+                // Stop speech
+                stopSpeaking(); 
+
+                // Stop typing animation/interval
                 if (AppState.typingIntervalId) {
                     clearInterval(AppState.typingIntervalId);
                     AppState.isTyping = false;
-                    // Immediately show the full text when manually stopping
-                    AppState.ui.responseContent.textContent = AppState.ui.responseContent.textContent; 
+                    // Immediately ensure the full text is shown (if available)
+                    const fullText = AppState.ui.responseContent.textContent; 
+                    AppState.ui.responseContent.textContent = fullText; 
                 }
+                
+                // Stop listening
                 if (AppState.isListening) {
                     stopListening();
                 }
-                // Update UI to IDLE (handled by stopSpeaking/stopListening if they were active)
+                
+                // Final check to ensure IDLE state
                 if (!AppState.isListening && !AppState.isSpeaking && !AppState.isTyping) {
                     updateUI(AppState.STATUS_IDLE);
                 }
             });
             
-            // Ensure voices are loaded (critical for TTS)
-            if (AppState.speechSynth.onvoiceschanged !== undefined) {
-                AppState.speechSynth.onvoiceschanged = () => {
-                    console.log("SpeechSynthesis voices loaded.");
-                };
-            }
-
-
             updateUI(AppState.STATUS_IDLE);
         }
 
         // --- Web Audio Tones for Feedback (Kept the same) ---
-
+        // ... (playClickTone and playEndTone functions are unchanged) ...
         function playClickTone(){
             try{
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
